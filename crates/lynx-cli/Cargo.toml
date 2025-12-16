@@ -1,0 +1,11 @@
+[package]
+name = "lynx-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Command-line interface for Lynx static analyzer"
+
+[dependencies]
+lynx-core = { path = "../lynx-core" }
