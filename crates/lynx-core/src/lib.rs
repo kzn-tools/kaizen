@@ -1,15 +1,44 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! Lynx Core - Static analysis engine for JavaScript/TypeScript
+//!
+//! This crate provides the core analysis functionality including:
+//! - Parser integration with SWC
+//! - Semantic analysis (scope, control flow)
+//! - Rule system (quality, security)
+//! - Taint analysis for security vulnerabilities
+//! - Diagnostic reporting
+
+pub mod diagnostic;
+pub mod parser;
+pub mod rules;
+pub mod semantic;
+pub mod taint;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    #[test]
+    fn parser_module_accessible() {
+        let _ = crate::parser::Parser;
+    }
 
     #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+    fn rules_quality_module_accessible() {
+        let _ = crate::rules::quality::QualityRule;
+    }
+
+    #[test]
+    fn semantic_module_accessible() {
+        let _ = crate::semantic::scope::Scope;
+        let _ = crate::semantic::cfg::ControlFlowGraph;
+    }
+
+    #[test]
+    fn taint_module_accessible() {
+        let _ = crate::taint::TaintAnalyzer;
+    }
+
+    #[test]
+    fn diagnostic_module_accessible() {
+        let _ = crate::diagnostic::Diagnostic;
     }
 
     #[test]
