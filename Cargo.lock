@@ -616,6 +616,7 @@ dependencies = [
 name = "lynx-cli"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "clap",
  "lynx-core",
  "serde",
