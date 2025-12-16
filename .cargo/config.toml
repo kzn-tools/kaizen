@@ -1,0 +1,13 @@
+[alias]
+b = "build"
+c = "check"
+t = "test"
+cl = "clippy --workspace --all-targets -- -D warnings"
+r = "run"
+d = "doc --no-deps --open"
+
+[build]
+rustflags = ["-D", "warnings"]
+
+[term]
+color = "auto"
