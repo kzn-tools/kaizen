@@ -9,6 +9,7 @@ description = "Command-line interface for Lynx static analyzer"
 
 [dependencies]
 lynx-core = { path = "../lynx-core" }
+anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 serde.workspace = true
 tracing.workspace = true
