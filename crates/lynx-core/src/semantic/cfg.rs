@@ -1,4 +1,4 @@
 //! Control Flow Graph construction and analysis
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ControlFlowGraph;

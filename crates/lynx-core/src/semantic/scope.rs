@@ -1,4 +1,4 @@
 //! Scope analysis for variable bindings and references
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Scope;

@@ -2,5 +2,5 @@
 //!
 //! Provides structured diagnostic information for issues found during analysis.
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Diagnostic;

@@ -2,5 +2,5 @@
 //!
 //! Integrates with SWC for parsing source files into AST.
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Parser;

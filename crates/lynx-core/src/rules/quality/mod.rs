@@ -1,4 +1,4 @@
 //! Quality rules for code style and best practices
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct QualityRule;

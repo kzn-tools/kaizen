@@ -17,28 +17,28 @@ pub mod taint;
 mod tests {
     #[test]
     fn parser_module_accessible() {
-        let _ = crate::parser::Parser::default();
+        let _ = crate::parser::Parser;
     }
 
     #[test]
     fn rules_quality_module_accessible() {
-        let _ = crate::rules::quality::QualityRule::default();
+        let _ = crate::rules::quality::QualityRule;
     }
 
     #[test]
     fn semantic_module_accessible() {
-        let _ = crate::semantic::scope::Scope::default();
-        let _ = crate::semantic::cfg::ControlFlowGraph::default();
+        let _ = crate::semantic::scope::Scope;
+        let _ = crate::semantic::cfg::ControlFlowGraph;
     }
 
     #[test]
     fn taint_module_accessible() {
-        let _ = crate::taint::TaintAnalyzer::default();
+        let _ = crate::taint::TaintAnalyzer;
     }
 
     #[test]
     fn diagnostic_module_accessible() {
-        let _ = crate::diagnostic::Diagnostic::default();
+        let _ = crate::diagnostic::Diagnostic;
     }
 
     #[test]
