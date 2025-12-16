@@ -1,0 +1,11 @@
+[package]
+name = "lynx-lsp"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Language Server Protocol implementation for Lynx"
+
+[dependencies]
+lynx-core = { path = "../lynx-core" }
