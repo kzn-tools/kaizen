@@ -8,6 +8,25 @@ use swc_ecma_parser::{EsSyntax, StringInput, Syntax, TsSyntax, lexer::Lexer};
 
 pub use swc_ecma_ast::{Module, Script};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Language {
+    JavaScript,
+    TypeScript,
+    Jsx,
+    Tsx,
+}
+
+pub fn detect_language(filename: &str) -> Language {
+    let ext = filename.rsplit('.').next().unwrap_or("").to_lowercase();
+
+    match ext.as_str() {
+        "ts" | "mts" | "cts" => Language::TypeScript,
+        "tsx" => Language::Tsx,
+        "jsx" => Language::Jsx,
+        _ => Language::JavaScript,
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 #[error("{message} at {line}:{column}")]
 pub struct ParseError {
@@ -71,6 +90,16 @@ impl Parser {
     pub fn new() -> Self {
         Self {
             syntax: Syntax::Es(Default::default()),
+        }
+    }
+
+    pub fn for_file(filename: &str) -> Self {
+        let language = detect_language(filename);
+        match language {
+            Language::JavaScript => Self::new(),
+            Language::TypeScript => Self::builder().typescript(true).build(),
+            Language::Jsx => Self::builder().jsx(true).build(),
+            Language::Tsx => Self::builder().typescript(true).jsx(true).build(),
         }
     }
 
@@ -215,6 +244,75 @@ mod tests {
         let code = "const element: JSX.Element = <div>Hello</div>;";
 
         let result = parser.parse_module(code);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_typescript_type_annotations() {
+        let parser = Parser::for_file("example.ts");
+        let code = "const x: number = 1;";
+
+        let result = parser.parse_module(code);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parse_tsx_jsx_element() {
+        let parser = Parser::for_file("component.tsx");
+        let code = "const App = () => <div />;";
+
+        let result = parser.parse_module(code);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn detect_language_from_extension() {
+        assert_eq!(detect_language("file.js"), Language::JavaScript);
+        assert_eq!(detect_language("file.mjs"), Language::JavaScript);
+        assert_eq!(detect_language("file.cjs"), Language::JavaScript);
+        assert_eq!(detect_language("file.jsx"), Language::Jsx);
+        assert_eq!(detect_language("file.ts"), Language::TypeScript);
+        assert_eq!(detect_language("file.mts"), Language::TypeScript);
+        assert_eq!(detect_language("file.cts"), Language::TypeScript);
+        assert_eq!(detect_language("file.tsx"), Language::Tsx);
+        assert_eq!(detect_language("unknown"), Language::JavaScript);
+    }
+
+    #[test]
+    fn parse_typescript_interface() {
+        let parser = Parser::for_file("types.ts");
+        let code = r#"
+            interface User {
+                id: number;
+                name: string;
+                email?: string;
+            }
+        "#;
+
+        let result = parser.parse_module(code);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn for_file_creates_correct_parser_for_js() {
+        let parser = Parser::for_file("script.js");
+        let code = "const x = 1;";
+
+        let result = parser.parse_script(code);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn for_file_creates_correct_parser_for_jsx() {
+        let parser = Parser::for_file("component.jsx");
+        let code = "const element = <div>Hello</div>;";
+
+        let result = parser.parse_script(code);
 
         assert!(result.is_ok());
     }
