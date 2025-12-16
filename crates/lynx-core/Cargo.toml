@@ -10,7 +10,7 @@ description = "Core analysis engine for Lynx static analyzer"
 [dependencies]
 swc_ecma_parser = "22.0"
 swc_ecma_ast = "14.0"
-swc_common = "18.0"
+swc_common = "14.0"
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

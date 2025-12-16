@@ -112,17 +112,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ast_node"
-version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2eb025ef00a6da925cf40870b9c8d008526b6004ece399cb0974209720f0b194"
-dependencies = [
- "quote",
- "swc_macros_common",
- "syn",
-]
-
-[[package]]
 name = "async-trait"
 version = "0.1.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -305,16 +294,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "from_variant"
-version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5ff35a391aef949120a0340d690269b3d9f63460a6106e99bd07b961f345ea9"
-dependencies = [
- "swc_macros_common",
- "syn",
-]
-
-[[package]]
 name = "futures"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -417,20 +396,6 @@ dependencies = [
  "new_debug_unreachable",
  "once_cell",
  "rustc-hash",
- "triomphe",
-]
-
-[[package]]
-name = "hstr"
-version = "3.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c43c0a9e8fbdb3bb9dc8eee85e1e2ac81605418b4c83b6b7413cbf14d56ca5c"
-dependencies = [
- "hashbrown",
- "new_debug_unreachable",
- "once_cell",
- "rustc-hash",
- "serde",
  "triomphe",
 ]
 
@@ -629,7 +594,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
- "swc_common 18.0.1",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_parser",
  "thiserror",
@@ -1122,18 +1087,7 @@ version = "7.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3500dcf04c84606b38464561edc5e46f5132201cb3e23cf9613ed4033d6b1bb2"
 dependencies = [
- "hstr 2.1.0",
- "once_cell",
- "serde",
-]
-
-[[package]]
-name = "swc_atoms"
-version = "9.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4ccbe2ecad10ad7432100f878a107b1d972a8aee83ca53184d00c23a078bb8a"
-dependencies = [
- "hstr 3.0.3",
+ "hstr",
  "once_cell",
  "serde",
 ]
@@ -1145,47 +1099,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2bb772b3a26b8b71d4e8c112ced5b5867be2266364b58517407a270328a2696"
 dependencies = [
  "anyhow",
- "ast_node 3.0.4",
+ "ast_node",
  "better_scoped_tls",
  "bytes-str",
  "either",
- "from_variant 2.0.2",
+ "from_variant",
  "new_debug_unreachable",
  "num-bigint",
  "once_cell",
  "rustc-hash",
  "serde",
  "siphasher 0.3.11",
- "swc_atoms 7.0.0",
+ "swc_atoms",
  "swc_eq_ignore_macros",
  "swc_visit",
  "tracing",
- "unicode-width 0.1.14",
- "url",
-]
-
-[[package]]
-name = "swc_common"
-version = "18.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1c06698254e9b47daaf9bbb062af489a350bd8d10dfaab0cabbd32d46cec69d"
-dependencies = [
- "anyhow",
- "ast_node 5.0.0",
- "better_scoped_tls",
- "bytes-str",
- "either",
- "from_variant 3.0.0",
- "num-bigint",
- "once_cell",
- "rustc-hash",
- "serde",
- "siphasher 0.3.11",
- "swc_atoms 9.0.0",
- "swc_eq_ignore_macros",
- "swc_visit",
- "tracing",
- "unicode-width 0.2.2",
+ "unicode-width",
  "url",
 ]
 
@@ -1202,8 +1131,8 @@ dependencies = [
  "phf",
  "rustc-hash",
  "string_enum",
- "swc_atoms 7.0.0",
- "swc_common 14.0.4",
+ "swc_atoms",
+ "swc_common",
  "swc_visit",
  "unicode-id-start",
 ]
@@ -1225,8 +1154,8 @@ dependencies = [
  "smallvec",
  "smartstring",
  "stacker",
- "swc_atoms 7.0.0",
- "swc_common 14.0.4",
+ "swc_atoms",
+ "swc_common",
  "swc_ecma_ast",
  "tracing",
 ]
@@ -1240,8 +1169,8 @@ dependencies = [
  "either",
  "num-bigint",
  "serde",
- "swc_atoms 7.0.0",
- "swc_common 14.0.4",
+ "swc_atoms",
+ "swc_common",
  "swc_ecma_ast",
  "swc_ecma_lexer",
  "tracing",
@@ -1529,12 +1458,6 @@ name = "unicode-width"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dd6e30e90baa6f72411720665d41d89b9a3d039dc45b8faea1ddd07f617f6af"
-
-[[package]]
-name = "unicode-width"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
 
 [[package]]
 name = "url"
