@@ -17,7 +17,7 @@ pub mod taint;
 mod tests {
     #[test]
     fn parser_module_accessible() {
-        let _ = crate::parser::Parser;
+        let _ = crate::parser::Parser::new();
     }
 
     #[test]
