@@ -12,6 +12,7 @@ pub mod parser;
 pub mod rules;
 pub mod semantic;
 pub mod taint;
+pub mod visitor;
 
 #[cfg(test)]
 mod tests {
