@@ -597,6 +597,7 @@ dependencies = [
  "swc_common",
  "swc_ecma_ast",
  "swc_ecma_parser",
+ "swc_ecma_visit",
  "thiserror",
  "tracing",
 ]
@@ -1173,6 +1174,21 @@ dependencies = [
  "swc_common",
  "swc_ecma_ast",
  "swc_ecma_lexer",
+ "tracing",
+]
+
+[[package]]
+name = "swc_ecma_visit"
+version = "14.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d187b3440f20dac5d5a61aaedff585aefac9c75c1a6650abb7f25936a4f0e67"
+dependencies = [
+ "new_debug_unreachable",
+ "num-bigint",
+ "swc_atoms",
+ "swc_common",
+ "swc_ecma_ast",
+ "swc_visit",
  "tracing",
 ]
 
