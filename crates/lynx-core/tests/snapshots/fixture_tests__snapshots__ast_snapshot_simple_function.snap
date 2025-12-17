@@ -1,0 +1,25 @@
+---
+source: crates/lynx-core/tests/fixture_tests.rs
+assertion_line: 190
+expression: functions
+---
+[
+  {
+    "name": "calculateArea",
+    "params_count": 1,
+    "is_async": false,
+    "is_generator": false
+  },
+  {
+    "name": "fetchData",
+    "params_count": 1,
+    "is_async": true,
+    "is_generator": false
+  },
+  {
+    "name": "generateNumbers",
+    "params_count": 1,
+    "is_async": false,
+    "is_generator": true
+  }
+]
