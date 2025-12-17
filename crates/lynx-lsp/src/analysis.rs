@@ -53,7 +53,7 @@ mod tests {
         let diagnostics = engine.analyze(&file);
 
         assert!(!diagnostics.is_empty());
-        assert!(diagnostics[0].message.len() > 0);
+        assert!(!diagnostics[0].message.is_empty());
     }
 
     #[test]
