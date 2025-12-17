@@ -32,6 +32,7 @@ pub struct RuleMetadata {
     pub category: RuleCategory,
     pub severity: Severity,
     pub docs_url: Option<&'static str>,
+    pub examples: Option<&'static str>,
 }
 
 pub trait Rule: Send + Sync {
@@ -177,6 +178,7 @@ macro_rules! declare_rule {
         category = $cat:ident,
         severity = $sev:ident
         $(, docs_url = $url:literal)?
+        $(, examples = $examples:literal)?
     ) => {
         pub struct $name {
             metadata: $crate::rules::RuleMetadata,
@@ -192,6 +194,7 @@ macro_rules! declare_rule {
                         category: $crate::rules::RuleCategory::$cat,
                         severity: $crate::rules::Severity::$sev,
                         docs_url: declare_rule!(@docs_url $($url)?),
+                        examples: declare_rule!(@examples $($examples)?),
                     },
                 }
             }
@@ -205,6 +208,8 @@ macro_rules! declare_rule {
     };
     (@docs_url $url:literal) => { Some($url) };
     (@docs_url) => { None };
+    (@examples $examples:literal) => { Some($examples) };
+    (@examples) => { None };
 }
 
 #[cfg(test)]
@@ -226,6 +231,7 @@ mod tests {
                     category: RuleCategory::Quality,
                     severity: Severity::Warning,
                     docs_url: None,
+                    examples: None,
                 },
                 diagnostics_to_return: Vec::new(),
             }
@@ -268,6 +274,7 @@ mod tests {
         assert_eq!(metadata.category, RuleCategory::Quality);
         assert_eq!(metadata.severity, Severity::Warning);
         assert!(metadata.docs_url.is_none());
+        assert!(metadata.examples.is_none());
     }
 
     #[test]
@@ -383,6 +390,7 @@ mod tests {
         assert_eq!(metadata.category, RuleCategory::Quality);
         assert_eq!(metadata.severity, Severity::Info);
         assert!(metadata.docs_url.is_none());
+        assert!(metadata.examples.is_none());
     }
 
     declare_rule!(
@@ -414,6 +422,40 @@ mod tests {
         assert_eq!(metadata.category, RuleCategory::Security);
         assert_eq!(metadata.severity, Severity::Error);
         assert_eq!(metadata.docs_url, Some("https://example.com/rules/M002"));
+        assert!(metadata.examples.is_none());
+    }
+
+    declare_rule!(
+        MacroTestRuleWithExamples,
+        id = "M003",
+        name = "macro-test-examples",
+        description = "Tests the declare_rule! macro with examples",
+        category = Quality,
+        severity = Warning,
+        examples = "// Bad\nvar x = 1;\n\n// Good\nlet x = 1;"
+    );
+
+    impl Rule for MacroTestRuleWithExamples {
+        fn metadata(&self) -> &RuleMetadata {
+            &self.metadata
+        }
+
+        fn check(&self, _file: &ParsedFile) -> Vec<Diagnostic> {
+            Vec::new()
+        }
+    }
+
+    #[test]
+    fn declare_rule_macro_with_examples() {
+        let rule = MacroTestRuleWithExamples::new();
+        let metadata = rule.metadata();
+
+        assert_eq!(metadata.id, "M003");
+        assert_eq!(metadata.category, RuleCategory::Quality);
+        assert_eq!(metadata.severity, Severity::Warning);
+        assert!(metadata.docs_url.is_none());
+        assert!(metadata.examples.is_some());
+        assert!(metadata.examples.unwrap().contains("var x = 1"));
     }
 
     // ==================== Configuration Tests ====================

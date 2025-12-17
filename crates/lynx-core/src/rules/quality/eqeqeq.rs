@@ -16,7 +16,9 @@ declare_rule!(
     name = "eqeqeq",
     description = "Require === and !== instead of == and !=",
     category = Quality,
-    severity = Warning
+    severity = Warning,
+    examples =
+        "// Bad\nif (x == y) { }\nif (x != y) { }\n\n// Good\nif (x === y) { }\nif (x !== y) { }"
 );
 
 impl Rule for Eqeqeq {

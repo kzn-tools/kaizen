@@ -114,4 +114,15 @@ mod tests {
         assert!(help.contains("PATH"));
         assert!(help.contains("--format"));
     }
+
+    #[test]
+    fn cli_parses_explain_with_rule_id() {
+        let cli = Cli::try_parse_from(["lynx", "explain", "Q030"]).unwrap();
+        match cli.command {
+            Commands::Explain(args) => {
+                assert_eq!(args.rule_id, "Q030");
+            }
+            _ => panic!("Expected Explain command"),
+        }
+    }
 }
