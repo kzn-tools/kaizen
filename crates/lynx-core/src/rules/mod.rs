@@ -5,8 +5,10 @@
 pub mod quality;
 pub mod security;
 
+use crate::config::RulesConfig;
 use crate::diagnostic::Diagnostic;
 use crate::parser::ParsedFile;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Severity {
@@ -39,15 +41,42 @@ pub trait Rule: Send + Sync {
 
 pub struct RuleRegistry {
     rules: Vec<Box<dyn Rule>>,
+    disabled_rules: HashSet<String>,
+    severity_overrides: HashMap<String, Severity>,
+    quality_enabled: bool,
+    security_enabled: bool,
 }
 
 impl RuleRegistry {
     pub fn new() -> Self {
-        Self { rules: Vec::new() }
+        Self {
+            rules: Vec::new(),
+            disabled_rules: HashSet::new(),
+            severity_overrides: HashMap::new(),
+            quality_enabled: true,
+            security_enabled: true,
+        }
     }
 
     pub fn register(&mut self, rule: Box<dyn Rule>) {
         self.rules.push(rule);
+    }
+
+    pub fn configure(&mut self, config: &RulesConfig) {
+        self.disabled_rules.clear();
+        self.severity_overrides.clear();
+
+        for rule_ref in &config.disabled {
+            self.disabled_rules.insert(rule_ref.clone());
+        }
+
+        for (rule_ref, severity_value) in &config.severity {
+            self.severity_overrides
+                .insert(rule_ref.clone(), (*severity_value).into());
+        }
+
+        self.quality_enabled = config.quality.unwrap_or(true);
+        self.security_enabled = config.security.unwrap_or(true);
     }
 
     pub fn rules(&self) -> impl Iterator<Item = &dyn Rule> {
@@ -57,14 +86,69 @@ impl RuleRegistry {
     pub fn run_all(&self, file: &ParsedFile) -> Vec<Diagnostic> {
         self.rules
             .iter()
-            .flat_map(|rule| rule.check(file))
+            .filter(|rule| self.should_run_rule(rule.as_ref()))
+            .flat_map(|rule| {
+                let mut diagnostics = rule.check(file);
+                self.apply_severity_overrides(rule.as_ref(), &mut diagnostics);
+                diagnostics
+            })
             .collect()
+    }
+
+    fn should_run_rule(&self, rule: &dyn Rule) -> bool {
+        let metadata = rule.metadata();
+
+        if !self.quality_enabled && metadata.category == RuleCategory::Quality {
+            return false;
+        }
+        if !self.security_enabled && metadata.category == RuleCategory::Security {
+            return false;
+        }
+
+        !self.is_rule_disabled(metadata)
+    }
+
+    fn is_rule_disabled(&self, metadata: &RuleMetadata) -> bool {
+        self.disabled_rules.contains(metadata.id) || self.disabled_rules.contains(metadata.name)
+    }
+
+    fn apply_severity_overrides(&self, rule: &dyn Rule, diagnostics: &mut [Diagnostic]) {
+        let metadata = rule.metadata();
+
+        let override_severity = self
+            .severity_overrides
+            .get(metadata.id)
+            .or_else(|| self.severity_overrides.get(metadata.name));
+
+        if let Some(severity) = override_severity {
+            for diag in diagnostics.iter_mut() {
+                diag.severity = *severity;
+            }
+        }
+    }
+
+    pub fn is_rule_enabled(&self, id_or_name: &str) -> bool {
+        if let Some(rule) = self
+            .get_rule(id_or_name)
+            .or_else(|| self.get_rule_by_name(id_or_name))
+        {
+            self.should_run_rule(rule)
+        } else {
+            false
+        }
     }
 
     pub fn get_rule(&self, id: &str) -> Option<&dyn Rule> {
         self.rules
             .iter()
             .find(|r| r.metadata().id == id)
+            .map(|r| r.as_ref())
+    }
+
+    pub fn get_rule_by_name(&self, name: &str) -> Option<&dyn Rule> {
+        self.rules
+            .iter()
+            .find(|r| r.metadata().name == name)
             .map(|r| r.as_ref())
     }
 
@@ -145,6 +229,16 @@ mod tests {
                 },
                 diagnostics_to_return: Vec::new(),
             }
+        }
+
+        fn with_name(mut self, name: &'static str) -> Self {
+            self.metadata.name = name;
+            self
+        }
+
+        fn with_category(mut self, category: RuleCategory) -> Self {
+            self.metadata.category = category;
+            self
         }
 
         fn with_diagnostic(mut self, diagnostic: Diagnostic) -> Self {
@@ -320,5 +414,211 @@ mod tests {
         assert_eq!(metadata.category, RuleCategory::Security);
         assert_eq!(metadata.severity, Severity::Error);
         assert_eq!(metadata.docs_url, Some("https://example.com/rules/M002"));
+    }
+
+    // ==================== Configuration Tests ====================
+
+    #[test]
+    fn disabled_rule_not_executed() {
+        use crate::config::RulesConfig;
+
+        let mut registry = RuleRegistry::new();
+        let diag = Diagnostic::new("Q032", Severity::Info, "console detected", "test.js", 1, 0);
+        registry.register(Box::new(
+            TestRule::new("Q032")
+                .with_name("no-console")
+                .with_diagnostic(diag),
+        ));
+
+        let config = RulesConfig {
+            disabled: vec!["Q032".to_string()],
+            ..Default::default()
+        };
+        registry.configure(&config);
+
+        let file = ParsedFile::from_source("test.js", "console.log('test')");
+        let diagnostics = registry.run_all(&file);
+
+        assert!(
+            diagnostics.is_empty(),
+            "Disabled rule should not produce diagnostics"
+        );
+    }
+
+    #[test]
+    fn disabled_rule_by_name_not_executed() {
+        use crate::config::RulesConfig;
+
+        let mut registry = RuleRegistry::new();
+        let diag = Diagnostic::new("Q032", Severity::Info, "console detected", "test.js", 1, 0);
+        registry.register(Box::new(
+            TestRule::new("Q032")
+                .with_name("no-console")
+                .with_diagnostic(diag),
+        ));
+
+        let config = RulesConfig {
+            disabled: vec!["no-console".to_string()],
+            ..Default::default()
+        };
+        registry.configure(&config);
+
+        let file = ParsedFile::from_source("test.js", "console.log('test')");
+        let diagnostics = registry.run_all(&file);
+
+        assert!(
+            diagnostics.is_empty(),
+            "Rule disabled by name should not produce diagnostics"
+        );
+    }
+
+    #[test]
+    fn all_rules_active_by_default() {
+        use crate::config::RulesConfig;
+
+        let mut registry = RuleRegistry::new();
+        let diag1 = Diagnostic::new("T001", Severity::Warning, "Issue 1", "test.js", 1, 0);
+        let diag2 = Diagnostic::new("T002", Severity::Warning, "Issue 2", "test.js", 2, 0);
+        registry.register(Box::new(TestRule::new("T001").with_diagnostic(diag1)));
+        registry.register(Box::new(TestRule::new("T002").with_diagnostic(diag2)));
+
+        let config = RulesConfig::default();
+        registry.configure(&config);
+
+        let file = ParsedFile::from_source("test.js", "const x = 1;");
+        let diagnostics = registry.run_all(&file);
+
+        assert_eq!(
+            diagnostics.len(),
+            2,
+            "All rules should be active by default"
+        );
+    }
+
+    #[test]
+    fn disable_category() {
+        use crate::config::RulesConfig;
+
+        let mut registry = RuleRegistry::new();
+        let diag1 = Diagnostic::new("Q001", Severity::Warning, "Quality issue", "test.js", 1, 0);
+        let diag2 = Diagnostic::new("S001", Severity::Warning, "Security issue", "test.js", 2, 0);
+        registry.register(Box::new(
+            TestRule::new("Q001")
+                .with_category(RuleCategory::Quality)
+                .with_diagnostic(diag1),
+        ));
+        registry.register(Box::new(
+            TestRule::new("S001")
+                .with_category(RuleCategory::Security)
+                .with_diagnostic(diag2),
+        ));
+
+        let config = RulesConfig {
+            quality: Some(false),
+            ..Default::default()
+        };
+        registry.configure(&config);
+
+        let file = ParsedFile::from_source("test.js", "const x = 1;");
+        let diagnostics = registry.run_all(&file);
+
+        assert_eq!(diagnostics.len(), 1, "Only security rule should run");
+        assert_eq!(diagnostics[0].rule_id, "S001");
+    }
+
+    #[test]
+    fn override_severity() {
+        use crate::config::{RulesConfig, SeverityValue};
+        use std::collections::HashMap;
+
+        let mut registry = RuleRegistry::new();
+        let diag = Diagnostic::new("Q030", Severity::Warning, "var detected", "test.js", 1, 0);
+        registry.register(Box::new(
+            TestRule::new("Q030")
+                .with_name("no-var")
+                .with_diagnostic(diag),
+        ));
+
+        let mut severity_overrides = HashMap::new();
+        severity_overrides.insert("Q030".to_string(), SeverityValue::Error);
+
+        let config = RulesConfig {
+            severity: severity_overrides,
+            ..Default::default()
+        };
+        registry.configure(&config);
+
+        let file = ParsedFile::from_source("test.js", "var x = 1;");
+        let diagnostics = registry.run_all(&file);
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            diagnostics[0].severity,
+            Severity::Error,
+            "Severity should be overridden to Error"
+        );
+    }
+
+    #[test]
+    fn override_severity_by_name() {
+        use crate::config::{RulesConfig, SeverityValue};
+        use std::collections::HashMap;
+
+        let mut registry = RuleRegistry::new();
+        let diag = Diagnostic::new("Q030", Severity::Warning, "var detected", "test.js", 1, 0);
+        registry.register(Box::new(
+            TestRule::new("Q030")
+                .with_name("no-var")
+                .with_diagnostic(diag),
+        ));
+
+        let mut severity_overrides = HashMap::new();
+        severity_overrides.insert("no-var".to_string(), SeverityValue::Error);
+
+        let config = RulesConfig {
+            severity: severity_overrides,
+            ..Default::default()
+        };
+        registry.configure(&config);
+
+        let file = ParsedFile::from_source("test.js", "var x = 1;");
+        let diagnostics = registry.run_all(&file);
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            diagnostics[0].severity,
+            Severity::Error,
+            "Severity should be overridden by name"
+        );
+    }
+
+    #[test]
+    fn is_rule_enabled_returns_true_for_active_rules() {
+        use crate::config::RulesConfig;
+
+        let mut registry = RuleRegistry::new();
+        registry.register(Box::new(TestRule::new("T001")));
+        registry.register(Box::new(TestRule::new("T002")));
+
+        let config = RulesConfig {
+            disabled: vec!["T002".to_string()],
+            ..Default::default()
+        };
+        registry.configure(&config);
+
+        assert!(registry.is_rule_enabled("T001"));
+        assert!(!registry.is_rule_enabled("T002"));
+    }
+
+    #[test]
+    fn get_rule_by_name_finds_rule() {
+        let mut registry = RuleRegistry::new();
+        registry.register(Box::new(TestRule::new("Q030").with_name("no-var")));
+        registry.register(Box::new(TestRule::new("Q032").with_name("no-console")));
+
+        let rule = registry.get_rule_by_name("no-console");
+
+        assert!(rule.is_some());
+        assert_eq!(rule.unwrap().metadata().id, "Q032");
     }
 }

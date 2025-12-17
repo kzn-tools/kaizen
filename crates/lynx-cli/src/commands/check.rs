@@ -79,7 +79,7 @@ impl CheckArgs {
         for warning in &config_result.warnings {
             eprintln!("{} {}", "warning:".yellow().bold(), warning);
         }
-        let _config = config_result.config;
+        let config = config_result.config;
 
         let files = discover_files(&self.path)?;
 
@@ -88,7 +88,7 @@ impl CheckArgs {
             return Ok(());
         }
 
-        let engine = AnalysisEngine::new();
+        let engine = AnalysisEngine::with_config(&config);
         let min_severity = self.parse_severity()?;
 
         let results: Vec<(PathBuf, String, Vec<Diagnostic>)> = files

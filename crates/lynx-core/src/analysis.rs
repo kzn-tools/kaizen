@@ -2,6 +2,7 @@
 //!
 //! Provides the core analysis functionality for CLI and other consumers.
 
+use crate::config::Config;
 use crate::diagnostic::Diagnostic;
 use crate::parser::ParsedFile;
 use crate::rules::RuleRegistry;
@@ -16,6 +17,16 @@ impl AnalysisEngine {
         Self {
             registry: create_default_registry(),
         }
+    }
+
+    pub fn with_config(config: &Config) -> Self {
+        let mut registry = create_default_registry();
+        registry.configure(&config.rules);
+        Self { registry }
+    }
+
+    pub fn registry(&self) -> &RuleRegistry {
+        &self.registry
     }
 
     pub fn analyze(&self, file: &ParsedFile) -> Vec<Diagnostic> {
