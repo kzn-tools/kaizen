@@ -1,4 +1,5 @@
 mod capabilities;
+mod document;
 mod handlers;
 mod server;
 

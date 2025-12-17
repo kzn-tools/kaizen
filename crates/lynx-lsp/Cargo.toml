@@ -12,6 +12,7 @@ lynx-core = { path = "../lynx-core" }
 tower-lsp = "0.20"
 tokio = { version = "1.48", features = ["full"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dashmap = "6"
 serde.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
