@@ -1,11 +1,12 @@
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    InitializeParams, InitializeResult, InitializedParams, MessageType,
+    InitializeParams, InitializeResult, InitializedParams, MessageType, Url,
 };
 use tower_lsp::{Client, LanguageServer};
 
 use crate::capabilities::server_capabilities;
+use crate::diagnostics::convert_parse_errors;
 use crate::document::DocumentStore;
 
 pub struct LynxLanguageServer {
@@ -19,6 +20,18 @@ impl LynxLanguageServer {
             client,
             documents: DocumentStore::new(),
         }
+    }
+
+    async fn publish_diagnostics_for_document(&self, uri: &Url) {
+        let diagnostics = self
+            .documents
+            .get(uri)
+            .map(|doc| convert_parse_errors(doc.errors()))
+            .unwrap_or_default();
+
+        self.client
+            .publish_diagnostics(uri.clone(), diagnostics, None)
+            .await;
     }
 }
 
@@ -44,19 +57,22 @@ impl LanguageServer for LynxLanguageServer {
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
-        self.documents.open(uri, &text);
+        self.documents.open(uri.clone(), &text);
+        self.publish_diagnostics_for_document(&uri).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         let uri = params.text_document.uri;
         if let Some(change) = params.content_changes.into_iter().next() {
             self.documents.update(&uri, &change.text);
+            self.publish_diagnostics_for_document(&uri).await;
         }
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
         self.documents.close(&uri);
+        self.client.publish_diagnostics(uri, vec![], None).await;
     }
 }
 
