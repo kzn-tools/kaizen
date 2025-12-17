@@ -198,8 +198,12 @@ mod tests {
         let diag1 = Diagnostic::new("T001", Severity::Warning, "Issue 1", "test.js", 1, 0);
         let diag2 = Diagnostic::new("T002", Severity::Error, "Issue 2", "test.js", 2, 0);
 
-        registry.register(Box::new(TestRule::new("T001").with_diagnostic(diag1.clone())));
-        registry.register(Box::new(TestRule::new("T002").with_diagnostic(diag2.clone())));
+        registry.register(Box::new(
+            TestRule::new("T001").with_diagnostic(diag1.clone()),
+        ));
+        registry.register(Box::new(
+            TestRule::new("T002").with_diagnostic(diag2.clone()),
+        ));
 
         let file = ParsedFile::from_source("test.js", "const x = 1;\nconst y = 2;");
         let diagnostics = registry.run_all(&file);
