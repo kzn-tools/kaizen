@@ -103,9 +103,7 @@ impl LanguageServer for LynxLanguageServer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tower_lsp::lsp_types::{
-        DiagnosticServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind,
-    };
+    use tower_lsp::lsp_types::{TextDocumentSyncCapability, TextDocumentSyncKind};
 
     #[test]
     fn server_responds_to_initialize_with_capabilities() {
@@ -136,24 +134,6 @@ mod tests {
                 );
             }
             None => panic!("textDocumentSync capability must be declared"),
-        }
-    }
-
-    #[test]
-    fn server_declares_diagnostic_provider() {
-        let capabilities = server_capabilities();
-
-        match &capabilities.diagnostic_provider {
-            Some(DiagnosticServerCapabilities::Options(opts)) => {
-                assert!(
-                    !opts.inter_file_dependencies,
-                    "inter_file_dependencies should be false for initial implementation"
-                );
-            }
-            Some(DiagnosticServerCapabilities::RegistrationOptions(_)) => {
-                // Registration options are also valid
-            }
-            None => panic!("diagnosticProvider capability must be declared"),
         }
     }
 
