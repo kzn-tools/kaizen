@@ -31,20 +31,28 @@ impl AnalysisEngine {
 
     pub fn analyze(&self, file: &ParsedFile) -> Vec<Diagnostic> {
         let mut diagnostics = Vec::new();
+        let disable_directives = file.disable_directives();
 
         for error in file.errors() {
-            diagnostics.push(Diagnostic::new(
+            let diagnostic = Diagnostic::new(
                 "PARSE",
                 crate::rules::Severity::Error,
                 &error.message,
                 &file.metadata().filename,
                 error.line,
                 error.column,
-            ));
+            );
+            if !disable_directives.is_disabled(diagnostic.line, &diagnostic.rule_id) {
+                diagnostics.push(diagnostic);
+            }
         }
 
         let rule_diagnostics = self.registry.run_all(file);
-        diagnostics.extend(rule_diagnostics);
+        for diagnostic in rule_diagnostics {
+            if !disable_directives.is_disabled(diagnostic.line, &diagnostic.rule_id) {
+                diagnostics.push(diagnostic);
+            }
+        }
 
         diagnostics
     }
@@ -113,5 +121,117 @@ mod tests {
 
         assert!(rule_ids.contains(&"Q030"), "Expected Q030 for var");
         assert!(rule_ids.contains(&"Q033"), "Expected Q033 for ==");
+    }
+
+    #[test]
+    fn disable_next_line_suppresses_diagnostic() {
+        let engine = AnalysisEngine::new();
+        let file = make_parsed_file(
+            "test.js",
+            r#"// lynx-disable-next-line Q030
+var x = 1;"#,
+        );
+
+        let diagnostics = engine.analyze(&file);
+
+        assert!(
+            !diagnostics.iter().any(|d| d.rule_id == "Q030"),
+            "Q030 should be suppressed by disable comment"
+        );
+    }
+
+    #[test]
+    fn disable_line_suppresses_diagnostic() {
+        let engine = AnalysisEngine::new();
+        let file = make_parsed_file("test.js", "var x = 1; // lynx-disable-line Q030");
+
+        let diagnostics = engine.analyze(&file);
+
+        assert!(
+            !diagnostics.iter().any(|d| d.rule_id == "Q030"),
+            "Q030 should be suppressed by disable comment"
+        );
+    }
+
+    #[test]
+    fn disable_next_line_all_rules() {
+        let engine = AnalysisEngine::new();
+        let file = make_parsed_file(
+            "test.js",
+            r#"// lynx-disable-next-line
+var x = 1; if (x == 2) {}"#,
+        );
+
+        let diagnostics = engine.analyze(&file);
+
+        assert!(
+            diagnostics.is_empty(),
+            "All diagnostics should be suppressed"
+        );
+    }
+
+    #[test]
+    fn disable_specific_rule_does_not_affect_others() {
+        let engine = AnalysisEngine::new();
+        let file = make_parsed_file(
+            "test.js",
+            r#"// lynx-disable-next-line Q030
+var x = 1; if (x == 2) {}"#,
+        );
+
+        let diagnostics = engine.analyze(&file);
+
+        assert!(
+            !diagnostics.iter().any(|d| d.rule_id == "Q030"),
+            "Q030 should be suppressed"
+        );
+        assert!(
+            diagnostics.iter().any(|d| d.rule_id == "Q033"),
+            "Q033 should NOT be suppressed"
+        );
+    }
+
+    #[test]
+    fn disable_multiple_rules() {
+        let engine = AnalysisEngine::new();
+        let file = make_parsed_file(
+            "test.js",
+            r#"// lynx-disable-next-line Q030, Q033
+var x = 1; if (x == 2) {}"#,
+        );
+
+        let diagnostics = engine.analyze(&file);
+
+        assert!(
+            !diagnostics.iter().any(|d| d.rule_id == "Q030"),
+            "Q030 should be suppressed"
+        );
+        assert!(
+            !diagnostics.iter().any(|d| d.rule_id == "Q033"),
+            "Q033 should be suppressed"
+        );
+    }
+
+    #[test]
+    fn disable_does_not_affect_other_lines() {
+        let engine = AnalysisEngine::new();
+        let file = make_parsed_file(
+            "test.js",
+            r#"// lynx-disable-next-line Q030
+var x = 1;
+var y = 2;"#,
+        );
+
+        let diagnostics = engine.analyze(&file);
+
+        let line_2_q030 = diagnostics
+            .iter()
+            .any(|d| d.rule_id == "Q030" && d.line == 2);
+        let line_3_q030 = diagnostics
+            .iter()
+            .any(|d| d.rule_id == "Q030" && d.line == 3);
+
+        assert!(!line_2_q030, "Q030 on line 2 should be suppressed");
+        assert!(line_3_q030, "Q030 on line 3 should NOT be suppressed");
     }
 }
