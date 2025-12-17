@@ -1,16 +1,24 @@
 use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::{InitializeParams, InitializeResult, InitializedParams, MessageType};
+use tower_lsp::lsp_types::{
+    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    InitializeParams, InitializeResult, InitializedParams, MessageType,
+};
 use tower_lsp::{Client, LanguageServer};
 
 use crate::capabilities::server_capabilities;
+use crate::document::DocumentStore;
 
 pub struct LynxLanguageServer {
     client: Client,
+    documents: DocumentStore,
 }
 
 impl LynxLanguageServer {
     pub fn new(client: Client) -> Self {
-        Self { client }
+        Self {
+            client,
+            documents: DocumentStore::new(),
+        }
     }
 }
 
@@ -31,6 +39,24 @@ impl LanguageServer for LynxLanguageServer {
 
     async fn shutdown(&self) -> Result<()> {
         Ok(())
+    }
+
+    async fn did_open(&self, params: DidOpenTextDocumentParams) {
+        let uri = params.text_document.uri;
+        let text = params.text_document.text;
+        self.documents.open(uri, &text);
+    }
+
+    async fn did_change(&self, params: DidChangeTextDocumentParams) {
+        let uri = params.text_document.uri;
+        if let Some(change) = params.content_changes.into_iter().next() {
+            self.documents.update(&uri, &change.text);
+        }
+    }
+
+    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+        let uri = params.text_document.uri;
+        self.documents.close(&uri);
     }
 }
 
@@ -96,5 +122,21 @@ mod tests {
         // shutdown() returns Result<()>, verify the implementation is correct
         // This is implicitly tested via the LanguageServer trait implementation
         // The actual async test would require tokio runtime
+    }
+
+    #[test]
+    fn server_declares_open_close_capability() {
+        let capabilities = server_capabilities();
+
+        match &capabilities.text_document_sync {
+            Some(TextDocumentSyncCapability::Options(opts)) => {
+                assert_eq!(
+                    opts.open_close,
+                    Some(true),
+                    "Server must support open/close notifications"
+                );
+            }
+            _ => panic!("textDocumentSync must use Options variant for open_close support"),
+        }
     }
 }
