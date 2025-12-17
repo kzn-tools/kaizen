@@ -11,6 +11,8 @@ use swc_ecma_parser::{
     EsSyntax, StringInput, Syntax, TsSyntax, lexer::Lexer, parse_file_as_module,
 };
 
+use crate::disable_comments::DisableDirectives;
+
 pub use swc_ecma_ast::{EsVersion, Module, Script};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,6 +74,7 @@ pub struct ParsedFile {
     ast_module: Option<Module>,
     errors: Vec<ParseError>,
     line_ranges: OnceLock<Vec<Range<usize>>>,
+    disable_directives: DisableDirectives,
 }
 
 impl std::fmt::Debug for ParsedFile {
@@ -89,6 +92,7 @@ impl ParsedFile {
         let language = detect_language(filename);
         let parser = Parser::for_file(filename);
         let parse_result = parser.parse_module_recovering(source);
+        let disable_directives = DisableDirectives::from_source(source);
 
         let line_count = if source.is_empty() {
             0
@@ -109,6 +113,7 @@ impl ParsedFile {
             ast_module: parse_result.module,
             errors: parse_result.errors,
             line_ranges: OnceLock::new(),
+            disable_directives,
         }
     }
 
@@ -126,6 +131,10 @@ impl ParsedFile {
 
     pub fn source(&self) -> &str {
         &self.source
+    }
+
+    pub fn disable_directives(&self) -> &DisableDirectives {
+        &self.disable_directives
     }
 
     pub fn get_line(&self, line_number: usize) -> Option<&str> {

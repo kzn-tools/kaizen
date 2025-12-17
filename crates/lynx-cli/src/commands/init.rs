@@ -60,10 +60,12 @@ impl InitArgs {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
     use std::env;
     use tempfile::tempdir;
 
     #[test]
+    #[serial]
     fn init_creates_config_file() {
         let dir = tempdir().unwrap();
         env::set_current_dir(dir.path()).unwrap();
@@ -76,6 +78,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn init_fails_if_config_exists_without_force() {
         let dir = tempdir().unwrap();
         env::set_current_dir(dir.path()).unwrap();
@@ -90,6 +93,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn init_with_force_overwrites_existing() {
         let dir = tempdir().unwrap();
         env::set_current_dir(dir.path()).unwrap();
