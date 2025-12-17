@@ -6,6 +6,7 @@ use tower_lsp::lsp_types::{
     InitializeParams, InitializeResult, InitializedParams, MessageType, Url,
 };
 use tower_lsp::{Client, LanguageServer};
+use tracing::{debug, info, instrument};
 
 use crate::analysis::AnalysisEngine;
 use crate::capabilities::server_capabilities;
@@ -60,40 +61,52 @@ impl LynxLanguageServer {
 
 #[tower_lsp::async_trait]
 impl LanguageServer for LynxLanguageServer {
+    #[instrument(skip(self, _params), name = "lsp/initialize")]
     async fn initialize(&self, _params: InitializeParams) -> Result<InitializeResult> {
+        info!("initializing LSP server");
         Ok(InitializeResult {
             capabilities: server_capabilities(),
             ..Default::default()
         })
     }
 
+    #[instrument(skip(self, _params), name = "lsp/initialized")]
     async fn initialized(&self, _params: InitializedParams) {
+        info!("LSP server initialized");
         self.client
             .log_message(MessageType::INFO, "lynx-lsp server initialized")
             .await;
     }
 
+    #[instrument(skip(self), name = "lsp/shutdown")]
     async fn shutdown(&self) -> Result<()> {
+        info!("shutting down LSP server");
         Ok(())
     }
 
+    #[instrument(skip(self, params), fields(uri = %params.text_document.uri), name = "lsp/textDocument/didOpen")]
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
+        debug!(uri = %uri, "opening document");
         self.documents.open(uri.clone(), &text);
         self.analyze_and_publish(&uri).await;
     }
 
+    #[instrument(skip(self, params), fields(uri = %params.text_document.uri), name = "lsp/textDocument/didChange")]
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         let uri = params.text_document.uri;
         if let Some(change) = params.content_changes.into_iter().next() {
+            debug!(uri = %uri, "document changed");
             self.documents.update(&uri, &change.text);
             self.analyze_and_publish(&uri).await;
         }
     }
 
+    #[instrument(skip(self, params), fields(uri = %params.text_document.uri), name = "lsp/textDocument/didClose")]
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
+        debug!(uri = %uri, "closing document");
         self.debouncer.cancel(&uri);
         self.documents.close(&uri);
         self.client.publish_diagnostics(uri, vec![], None).await;
