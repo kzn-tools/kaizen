@@ -16,7 +16,8 @@ declare_rule!(
     name = "no-eval",
     description = "Disallow eval() and similar dangerous patterns",
     category = Quality,
-    severity = Warning
+    severity = Warning,
+    examples = "// Bad\neval('code');\nnew Function('return 1');\nsetTimeout('alert(1)', 100);\n\n// Good\nJSON.parse(data);\nsetTimeout(() => alert(1), 100);"
 );
 
 impl Rule for NoEval {

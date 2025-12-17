@@ -16,7 +16,8 @@ declare_rule!(
     name = "no-console",
     description = "Disallow console.* calls in production code",
     category = Quality,
-    severity = Info
+    severity = Info,
+    examples = "// Bad\nconsole.log('debug');\nconsole.error('error');\n\n// Good\n// Use a proper logging library\nlogger.info('message');"
 );
 
 impl Rule for NoConsole {

@@ -16,7 +16,9 @@ declare_rule!(
     name = "no-var",
     description = "Disallow var declarations, use let or const instead",
     category = Quality,
-    severity = Warning
+    severity = Warning,
+    examples =
+        "// Bad\nvar x = 1;\nvar name = 'test';\n\n// Good\nlet x = 1;\nconst name = 'test';"
 );
 
 impl Rule for NoVar {

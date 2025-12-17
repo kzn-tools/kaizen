@@ -51,6 +51,14 @@ impl ExplainArgs {
                     println!("  {}: {}", "Documentation".cyan(), url);
                 }
 
+                if let Some(examples) = metadata.examples {
+                    println!();
+                    println!("  {}:", "Examples".cyan());
+                    for line in examples.lines() {
+                        println!("    {}", line);
+                    }
+                }
+
                 println!();
                 if is_enabled {
                     println!("  {}: {}", "Status".cyan(), "enabled".green());
@@ -94,5 +102,64 @@ fn format_severity(severity: &Severity) -> String {
         Severity::Warning => "Warning".yellow().to_string(),
         Severity::Info => "Info".blue().to_string(),
         Severity::Hint => "Hint".cyan().to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use lynx_core::analysis::AnalysisEngine;
+    use lynx_core::config::Config;
+
+    #[test]
+    fn explain_known_rule_returns_metadata() {
+        let config = Config::default();
+        let engine = AnalysisEngine::with_config(&config);
+        let registry = engine.registry();
+
+        let rule = registry.get_rule("Q030");
+        assert!(rule.is_some(), "Q030 rule should exist");
+
+        let metadata = rule.unwrap().metadata();
+        assert_eq!(metadata.id, "Q030");
+        assert_eq!(metadata.name, "no-var");
+        assert!(!metadata.description.is_empty());
+    }
+
+    #[test]
+    fn explain_unknown_rule_returns_none() {
+        let config = Config::default();
+        let engine = AnalysisEngine::with_config(&config);
+        let registry = engine.registry();
+
+        let rule = registry.get_rule("Q999");
+        assert!(rule.is_none(), "Q999 rule should not exist");
+    }
+
+    #[test]
+    fn explain_rule_by_name() {
+        let config = Config::default();
+        let engine = AnalysisEngine::with_config(&config);
+        let registry = engine.registry();
+
+        let rule = registry.get_rule_by_name("no-var");
+        assert!(rule.is_some(), "no-var rule should exist");
+        assert_eq!(rule.unwrap().metadata().id, "Q030");
+    }
+
+    #[test]
+    fn rule_has_examples() {
+        let config = Config::default();
+        let engine = AnalysisEngine::with_config(&config);
+        let registry = engine.registry();
+
+        let rule = registry.get_rule("Q030").expect("Q030 should exist");
+        let metadata = rule.metadata();
+
+        assert!(
+            metadata.examples.is_some(),
+            "Q030 should have examples defined"
+        );
+        let examples = metadata.examples.unwrap();
+        assert!(examples.contains("var"), "Examples should show var usage");
     }
 }

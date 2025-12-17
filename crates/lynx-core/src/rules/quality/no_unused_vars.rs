@@ -18,7 +18,8 @@ declare_rule!(
     name = "no-unused-vars",
     description = "Disallow unused variables",
     category = Quality,
-    severity = Warning
+    severity = Warning,
+    examples = "// Bad\nconst unused = 1;\n\n// Good\nconst used = 1;\nconsole.log(used);\n\n// Allowed (underscore prefix)\nconst _intentionallyUnused = 1;"
 );
 
 struct Declaration {
