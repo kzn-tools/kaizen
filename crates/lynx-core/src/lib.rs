@@ -7,6 +7,7 @@
 //! - Taint analysis for security vulnerabilities
 //! - Diagnostic reporting
 
+pub mod analysis;
 pub mod diagnostic;
 pub mod parser;
 pub mod rules;

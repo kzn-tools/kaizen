@@ -12,4 +12,11 @@ lynx-core = { path = "../lynx-core" }
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 serde.workspace = true
+serde_json.workspace = true
 tracing.workspace = true
+walkdir = "2.5"
+rayon = "1.10"
+colored = "2"
+
+[dev-dependencies]
+tempfile = "3"
