@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
@@ -5,33 +7,53 @@ use tower_lsp::lsp_types::{
 };
 use tower_lsp::{Client, LanguageServer};
 
+use crate::analysis::AnalysisEngine;
 use crate::capabilities::server_capabilities;
-use crate::diagnostics::convert_parse_errors;
+use crate::debouncer::Debouncer;
 use crate::document::DocumentStore;
 
 pub struct LynxLanguageServer {
     client: Client,
-    documents: DocumentStore,
+    documents: Arc<DocumentStore>,
+    analysis_engine: Arc<AnalysisEngine>,
+    debouncer: Arc<Debouncer>,
 }
 
 impl LynxLanguageServer {
     pub fn new(client: Client) -> Self {
         Self {
             client,
-            documents: DocumentStore::new(),
+            documents: Arc::new(DocumentStore::new()),
+            analysis_engine: Arc::new(AnalysisEngine::new()),
+            debouncer: Arc::new(Debouncer::new()),
         }
     }
 
-    async fn publish_diagnostics_for_document(&self, uri: &Url) {
+    async fn analyze_and_publish(&self, uri: &Url) {
         let diagnostics = self
             .documents
             .get(uri)
-            .map(|doc| convert_parse_errors(doc.errors()))
+            .map(|doc| self.analysis_engine.analyze(&doc))
             .unwrap_or_default();
 
         self.client
             .publish_diagnostics(uri.clone(), diagnostics, None)
             .await;
+    }
+
+    fn schedule_analysis(&self, uri: Url) {
+        let client = self.client.clone();
+        let documents = self.documents.clone();
+        let analysis_engine = self.analysis_engine.clone();
+
+        self.debouncer.schedule(uri.clone(), move || async move {
+            let diagnostics = documents
+                .get(&uri)
+                .map(|doc| analysis_engine.analyze(&doc))
+                .unwrap_or_default();
+
+            client.publish_diagnostics(uri, diagnostics, None).await;
+        });
     }
 }
 
@@ -58,19 +80,20 @@ impl LanguageServer for LynxLanguageServer {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
         self.documents.open(uri.clone(), &text);
-        self.publish_diagnostics_for_document(&uri).await;
+        self.analyze_and_publish(&uri).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         let uri = params.text_document.uri;
         if let Some(change) = params.content_changes.into_iter().next() {
             self.documents.update(&uri, &change.text);
-            self.publish_diagnostics_for_document(&uri).await;
+            self.schedule_analysis(uri);
         }
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
+        self.debouncer.cancel(&uri);
         self.documents.close(&uri);
         self.client.publish_diagnostics(uri, vec![], None).await;
     }

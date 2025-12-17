@@ -1,4 +1,6 @@
+mod analysis;
 mod capabilities;
+mod debouncer;
 mod diagnostics;
 mod document;
 mod handlers;
