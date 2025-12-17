@@ -22,8 +22,10 @@ mod tests {
     }
 
     #[test]
-    fn rules_quality_module_accessible() {
-        let _ = crate::rules::quality::QualityRule;
+    fn rules_module_accessible() {
+        let _ = crate::rules::RuleRegistry::new();
+        let _ = crate::rules::Severity::Warning;
+        let _ = crate::rules::RuleCategory::Quality;
     }
 
     #[test]
@@ -39,7 +41,11 @@ mod tests {
 
     #[test]
     fn diagnostic_module_accessible() {
-        let _ = crate::diagnostic::Diagnostic;
+        use crate::diagnostic::Diagnostic;
+        use crate::rules::Severity;
+
+        let diag = Diagnostic::new("TEST", Severity::Warning, "test message", "test.js", 1, 0);
+        assert_eq!(diag.rule_id, "TEST");
     }
 
     #[test]
