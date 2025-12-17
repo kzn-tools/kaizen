@@ -1,5 +1,9 @@
+use lynx_core::diagnostic::Diagnostic as CoreDiagnostic;
 use lynx_core::parser::ParseError;
-use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, DiagnosticTag, Position, Range};
+use lynx_core::rules::Severity;
+use tower_lsp::lsp_types::{
+    Diagnostic, DiagnosticSeverity, DiagnosticTag, NumberOrString, Position, Range,
+};
 
 pub fn convert_parse_error(error: &ParseError) -> Diagnostic {
     let start = Position {
@@ -27,6 +31,43 @@ pub fn convert_parse_error(error: &ParseError) -> Diagnostic {
 
 pub fn convert_parse_errors(errors: &[ParseError]) -> Vec<Diagnostic> {
     errors.iter().map(convert_parse_error).collect()
+}
+
+fn convert_severity(severity: Severity) -> DiagnosticSeverity {
+    match severity {
+        Severity::Error => DiagnosticSeverity::ERROR,
+        Severity::Warning => DiagnosticSeverity::WARNING,
+        Severity::Info => DiagnosticSeverity::INFORMATION,
+        Severity::Hint => DiagnosticSeverity::HINT,
+    }
+}
+
+pub fn convert_diagnostic(diag: &CoreDiagnostic) -> Diagnostic {
+    let start = Position {
+        line: diag.line.saturating_sub(1) as u32,
+        character: diag.column as u32,
+    };
+
+    let end = Position {
+        line: diag.end_line.saturating_sub(1) as u32,
+        character: diag.end_column as u32,
+    };
+
+    Diagnostic {
+        range: Range { start, end },
+        severity: Some(convert_severity(diag.severity)),
+        code: Some(NumberOrString::String(diag.rule_id.clone())),
+        code_description: None,
+        source: Some("lynx".to_string()),
+        message: diag.message.clone(),
+        related_information: None,
+        tags: None,
+        data: None,
+    }
+}
+
+pub fn convert_diagnostics(diagnostics: &[CoreDiagnostic]) -> Vec<Diagnostic> {
+    diagnostics.iter().map(convert_diagnostic).collect()
 }
 
 #[allow(dead_code)]
@@ -72,6 +113,81 @@ mod tests {
             span_hi: 1,
             message: message.to_string(),
         }
+    }
+
+    fn make_core_diagnostic(
+        rule_id: &str,
+        severity: Severity,
+        message: &str,
+        line: usize,
+        column: usize,
+    ) -> CoreDiagnostic {
+        CoreDiagnostic::new(rule_id, severity, message, "test.js", line, column)
+    }
+
+    #[test]
+    fn convert_core_diagnostic_to_lsp() {
+        let diag = make_core_diagnostic("Q030", Severity::Warning, "Test message", 5, 10);
+
+        let lsp_diag = convert_diagnostic(&diag);
+
+        assert_eq!(lsp_diag.message, "Test message");
+        assert_eq!(lsp_diag.severity, Some(DiagnosticSeverity::WARNING));
+        assert_eq!(
+            lsp_diag.code,
+            Some(NumberOrString::String("Q030".to_string()))
+        );
+        assert_eq!(lsp_diag.source, Some("lynx".to_string()));
+    }
+
+    #[test]
+    fn convert_core_diagnostic_line_is_zero_based() {
+        let diag = make_core_diagnostic("Q030", Severity::Warning, "Test", 5, 10);
+
+        let lsp_diag = convert_diagnostic(&diag);
+
+        assert_eq!(lsp_diag.range.start.line, 4);
+        assert_eq!(lsp_diag.range.start.character, 10);
+    }
+
+    #[test]
+    fn convert_severity_error() {
+        assert_eq!(convert_severity(Severity::Error), DiagnosticSeverity::ERROR);
+    }
+
+    #[test]
+    fn convert_severity_warning() {
+        assert_eq!(
+            convert_severity(Severity::Warning),
+            DiagnosticSeverity::WARNING
+        );
+    }
+
+    #[test]
+    fn convert_severity_info() {
+        assert_eq!(
+            convert_severity(Severity::Info),
+            DiagnosticSeverity::INFORMATION
+        );
+    }
+
+    #[test]
+    fn convert_severity_hint() {
+        assert_eq!(convert_severity(Severity::Hint), DiagnosticSeverity::HINT);
+    }
+
+    #[test]
+    fn convert_multiple_core_diagnostics() {
+        let diagnostics = vec![
+            make_core_diagnostic("Q030", Severity::Warning, "Msg 1", 1, 0),
+            make_core_diagnostic("Q033", Severity::Warning, "Msg 2", 2, 5),
+        ];
+
+        let lsp_diagnostics = convert_diagnostics(&diagnostics);
+
+        assert_eq!(lsp_diagnostics.len(), 2);
+        assert_eq!(lsp_diagnostics[0].message, "Msg 1");
+        assert_eq!(lsp_diagnostics[1].message, "Msg 2");
     }
 
     #[test]
