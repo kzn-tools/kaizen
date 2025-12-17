@@ -74,6 +74,53 @@ lynx explain <rule-id>
 lynx explain no-console
 ```
 
+## IDE Integration
+
+### Installing the LSP Server
+
+```bash
+# Build and install lynx-lsp to ~/.local/bin
+chmod +x scripts/install-local.sh
+./scripts/install-local.sh
+```
+
+Make sure `~/.local/bin` is in your PATH:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+### Zed
+
+Add to your Zed settings (`~/.config/zed/settings.json`):
+
+```json
+{
+  "lsp": {
+    "lynx-lsp": {
+      "binary": {
+        "path": "~/.local/bin/lynx-lsp"
+      }
+    }
+  },
+  "languages": {
+    "JavaScript": {
+      "language_servers": ["lynx-lsp", "..."]
+    },
+    "TypeScript": {
+      "language_servers": ["lynx-lsp", "..."]
+    }
+  }
+}
+```
+
+The `"..."` preserves other language servers (like vtsls for TypeScript features).
+
+To verify the LSP is working:
+1. Open a JavaScript file in Zed
+2. Introduce a syntax error (e.g., `const x = `)
+3. The error should be underlined in red
+
 ## Development
 
 ### Quick Start
