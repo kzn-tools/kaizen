@@ -1,0 +1,15 @@
+id = "lynx"
+name = "Lynx"
+version = "0.1.0"
+schema_version = 1
+authors = ["mpiton <contact@mpiton.dev>"]
+description = "Ultra-fast JavaScript/TypeScript static analyzer"
+repository = "https://github.com/mpiton/lynx"
+
+[lib]
+kind = "Rust"
+version = "0.7.0"
+
+[language_servers.lynx-lsp]
+name = "Lynx"
+languages = ["JavaScript", "TypeScript"]

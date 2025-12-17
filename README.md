@@ -74,6 +74,70 @@ lynx explain <rule-id>
 lynx explain no-console
 ```
 
+## IDE Integration
+
+### Installing the LSP Server
+
+```bash
+# Build and install lynx-lsp to ~/.local/bin
+chmod +x scripts/install-local.sh
+./scripts/install-local.sh
+```
+
+Make sure `~/.local/bin` is in your PATH:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+### Zed
+
+Install the Lynx extension as a dev extension:
+
+1. Open Zed
+2. Open the Extensions panel (View → Extensions)
+3. Click "Install Dev Extension"
+4. Select the `editors/zed` directory from this repository
+
+Or build and install manually:
+
+```bash
+cd editors/zed
+cargo build --release --target wasm32-wasip1
+```
+
+The extension will automatically find `lynx-lsp` from your PATH.
+
+### VS Code
+
+Install the Lynx extension:
+
+```bash
+cd editors/vscode
+npm install
+npm run compile
+```
+
+Then install in VS Code:
+1. Open VS Code
+2. Run "Extensions: Install from VSIX..." from Command Palette
+3. Or copy the folder to `~/.vscode/extensions/lynx-lsp`
+
+Configure the LSP path if needed in VS Code settings:
+
+```json
+{
+  "lynx.serverPath": "/home/youruser/.local/bin/lynx-lsp"
+}
+```
+
+### Verify Installation
+
+To verify the LSP is working:
+1. Open a JavaScript or TypeScript file
+2. Introduce a syntax error (e.g., `const x = `)
+3. The error should be underlined in red
+
 ## Development
 
 ### Quick Start
@@ -102,6 +166,9 @@ lynx/
 │   ├── lynx-core/   # Core analysis engine
 │   ├── lynx-lsp/    # Language Server Protocol implementation
 │   └── lynx-cli/    # Command-line interface
+├── editors/
+│   ├── vscode/      # VS Code extension
+│   └── zed/         # Zed extension
 └── scripts/         # Development utilities
 ```
 

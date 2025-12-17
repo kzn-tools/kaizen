@@ -1,0 +1,52 @@
+{
+  "name": "lynx-lsp",
+  "displayName": "Lynx",
+  "description": "Ultra-fast JavaScript/TypeScript static analyzer",
+  "version": "0.1.0",
+  "publisher": "mpiton",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mpiton/lynx"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescriptreact"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "type": "object",
+      "title": "Lynx",
+      "properties": {
+        "lynx.serverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the lynx-lsp binary. If empty, uses 'lynx-lsp' from PATH."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "@types/node": "^18.0.0",
+    "typescript": "^5.0.0"
+  }
+}

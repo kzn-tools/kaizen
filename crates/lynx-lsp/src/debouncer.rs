@@ -9,6 +9,7 @@ use tower_lsp::lsp_types::Url;
 
 const DEFAULT_DEBOUNCE_DELAY_MS: u64 = 150;
 
+#[allow(dead_code)]
 pub struct Debouncer {
     delay: Duration,
     pending: Arc<DashMap<Url, Arc<Notify>>>,
