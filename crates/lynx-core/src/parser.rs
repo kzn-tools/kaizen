@@ -2,6 +2,9 @@
 //!
 //! Integrates with SWC for parsing source files into AST.
 
+use std::ops::Range;
+use std::sync::OnceLock;
+
 use swc_common::sync::Lrc;
 use swc_common::{FileName, SourceMap, Spanned};
 use swc_ecma_parser::{
@@ -52,6 +55,106 @@ impl ParseResult {
 
     pub fn has_errors(&self) -> bool {
         !self.errors.is_empty()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileMetadata {
+    pub filename: String,
+    pub language: Language,
+    pub line_count: usize,
+    pub has_errors: bool,
+}
+
+pub struct ParsedFile {
+    source: String,
+    metadata: FileMetadata,
+    ast_module: Option<Module>,
+    errors: Vec<ParseError>,
+    line_ranges: OnceLock<Vec<Range<usize>>>,
+}
+
+impl std::fmt::Debug for ParsedFile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ParsedFile")
+            .field("metadata", &self.metadata)
+            .field("has_module", &self.ast_module.is_some())
+            .field("error_count", &self.errors.len())
+            .finish()
+    }
+}
+
+impl ParsedFile {
+    pub fn from_source(filename: &str, source: &str) -> Self {
+        let language = detect_language(filename);
+        let parser = Parser::for_file(filename);
+        let parse_result = parser.parse_module_recovering(source);
+
+        let line_count = if source.is_empty() {
+            0
+        } else {
+            source.lines().count()
+        };
+
+        let metadata = FileMetadata {
+            filename: filename.to_string(),
+            language,
+            line_count,
+            has_errors: parse_result.has_errors(),
+        };
+
+        Self {
+            source: source.to_string(),
+            metadata,
+            ast_module: parse_result.module,
+            errors: parse_result.errors,
+            line_ranges: OnceLock::new(),
+        }
+    }
+
+    pub fn metadata(&self) -> &FileMetadata {
+        &self.metadata
+    }
+
+    pub fn module(&self) -> Option<&Module> {
+        self.ast_module.as_ref()
+    }
+
+    pub fn errors(&self) -> &[ParseError] {
+        &self.errors
+    }
+
+    pub fn source(&self) -> &str {
+        &self.source
+    }
+
+    pub fn get_line(&self, line_number: usize) -> Option<&str> {
+        if line_number == 0 {
+            return None;
+        }
+
+        let ranges = self.line_ranges.get_or_init(|| self.build_line_ranges());
+        let index = line_number - 1;
+
+        ranges.get(index).map(|range| &self.source[range.clone()])
+    }
+
+    fn build_line_ranges(&self) -> Vec<Range<usize>> {
+        let mut ranges = Vec::new();
+        let mut start = 0;
+
+        for (i, c) in self.source.char_indices() {
+            if c == '\n' {
+                ranges.push(start..i);
+                start = i + 1;
+            }
+        }
+
+        if start < self.source.len() || (start == 0 && !self.source.is_empty()) {
+            ranges.push(start..self.source.len());
+        }
+
+        ranges
     }
 }
 
@@ -499,5 +602,143 @@ interface User { name: string; }
         let result = parser.parse_module_recovering(code);
 
         assert!(result.has_errors());
+    }
+
+    // ParsedFile and FileMetadata tests (TDD RED phase)
+
+    #[test]
+    fn parsed_file_metadata_returns_filename() {
+        let code = "const x = 1;";
+        let parsed = ParsedFile::from_source("test.js", code);
+
+        assert_eq!(parsed.metadata().filename, "test.js");
+    }
+
+    #[test]
+    fn parsed_file_metadata_returns_language() {
+        let js_parsed = ParsedFile::from_source("test.js", "const x = 1;");
+        let ts_parsed = ParsedFile::from_source("test.ts", "const x: number = 1;");
+        let jsx_parsed = ParsedFile::from_source("test.jsx", "const x = <div />;");
+        let tsx_parsed = ParsedFile::from_source("test.tsx", "const x: JSX.Element = <div />;");
+
+        assert_eq!(js_parsed.metadata().language, Language::JavaScript);
+        assert_eq!(ts_parsed.metadata().language, Language::TypeScript);
+        assert_eq!(jsx_parsed.metadata().language, Language::Jsx);
+        assert_eq!(tsx_parsed.metadata().language, Language::Tsx);
+    }
+
+    #[test]
+    fn parsed_file_metadata_returns_line_count() {
+        let code = "const x = 1;\nconst y = 2;\nconst z = 3;";
+        let parsed = ParsedFile::from_source("test.js", code);
+
+        assert_eq!(parsed.metadata().line_count, 3);
+    }
+
+    #[test]
+    fn parsed_file_metadata_returns_has_errors() {
+        let valid_code = "const x = 1;";
+        let invalid_code = "const = ;";
+
+        let valid_parsed = ParsedFile::from_source("test.js", valid_code);
+        let invalid_parsed = ParsedFile::from_source("test.js", invalid_code);
+
+        assert!(!valid_parsed.metadata().has_errors);
+        assert!(invalid_parsed.metadata().has_errors);
+    }
+
+    #[test]
+    fn parsed_file_module_returns_ast_reference() {
+        let code = "const x = 1;";
+        let parsed = ParsedFile::from_source("test.js", code);
+
+        let module = parsed.module();
+
+        assert!(module.is_some());
+        assert_eq!(module.unwrap().body.len(), 1);
+    }
+
+    #[test]
+    fn parsed_file_module_returns_none_for_fatal_errors() {
+        let code = "const = ;";
+        let parsed = ParsedFile::from_source("test.js", code);
+
+        let _module = parsed.module();
+
+        assert!(parsed.metadata().has_errors);
+    }
+
+    #[test]
+    fn parsed_file_get_line_returns_correct_content() {
+        let code = "const x = 1;\nconst y = 2;\nconst z = 3;";
+        let parsed = ParsedFile::from_source("test.js", code);
+
+        assert_eq!(parsed.get_line(1), Some("const x = 1;"));
+        assert_eq!(parsed.get_line(2), Some("const y = 2;"));
+        assert_eq!(parsed.get_line(3), Some("const z = 3;"));
+    }
+
+    #[test]
+    fn parsed_file_get_line_returns_none_for_invalid_line() {
+        let code = "const x = 1;\nconst y = 2;";
+        let parsed = ParsedFile::from_source("test.js", code);
+
+        assert_eq!(parsed.get_line(0), None);
+        assert_eq!(parsed.get_line(3), None);
+        assert_eq!(parsed.get_line(100), None);
+    }
+
+    #[test]
+    fn parsed_file_get_line_handles_empty_lines() {
+        let code = "const x = 1;\n\nconst y = 2;";
+        let parsed = ParsedFile::from_source("test.js", code);
+
+        assert_eq!(parsed.get_line(1), Some("const x = 1;"));
+        assert_eq!(parsed.get_line(2), Some(""));
+        assert_eq!(parsed.get_line(3), Some("const y = 2;"));
+    }
+
+    #[test]
+    fn parsed_file_errors_returns_parse_errors() {
+        let code = "const = ;";
+        let parsed = ParsedFile::from_source("test.js", code);
+
+        let errors = parsed.errors();
+
+        assert!(!errors.is_empty());
+        assert!(!errors[0].message.is_empty());
+    }
+
+    #[test]
+    fn parsed_file_source_returns_full_source() {
+        let code = "const x = 1;\nconst y = 2;";
+        let parsed = ParsedFile::from_source("test.js", code);
+
+        assert_eq!(parsed.source(), code);
+    }
+
+    #[test]
+    fn parsed_file_line_count_single_line() {
+        let code = "const x = 1;";
+        let parsed = ParsedFile::from_source("test.js", code);
+
+        assert_eq!(parsed.metadata().line_count, 1);
+    }
+
+    #[test]
+    fn parsed_file_line_count_empty_source() {
+        let code = "";
+        let parsed = ParsedFile::from_source("test.js", code);
+
+        assert_eq!(parsed.metadata().line_count, 0);
+    }
+
+    #[test]
+    fn parsed_file_get_line_trailing_newline() {
+        let code = "const x = 1;\n";
+        let parsed = ParsedFile::from_source("test.js", code);
+
+        assert_eq!(parsed.metadata().line_count, 1);
+        assert_eq!(parsed.get_line(1), Some("const x = 1;"));
     }
 }
