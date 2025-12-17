@@ -11,7 +11,7 @@ use crate::rules::Severity;
 pub const CONFIG_FILENAME: &str = "lynx.toml";
 
 const KNOWN_TOP_LEVEL_KEYS: &[&str] = &["include", "exclude", "rules"];
-const KNOWN_RULES_KEYS: &[&str] = &["enabled", "disabled", "severity"];
+const KNOWN_RULES_KEYS: &[&str] = &["enabled", "disabled", "severity", "quality", "security"];
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
@@ -45,6 +45,8 @@ pub struct RulesConfig {
     pub disabled: Vec<String>,
     #[serde(default)]
     pub severity: HashMap<String, SeverityValue>,
+    pub quality: Option<bool>,
+    pub security: Option<bool>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
