@@ -1,6 +1,5 @@
 use tower_lsp::lsp_types::{
-    DiagnosticOptions, DiagnosticServerCapabilities, ServerCapabilities,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
+    ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
     TextDocumentSyncSaveOptions,
 };
 
@@ -14,11 +13,8 @@ pub fn server_capabilities() -> ServerCapabilities {
                 ..Default::default()
             },
         )),
-        diagnostic_provider: Some(DiagnosticServerCapabilities::Options(DiagnosticOptions {
-            inter_file_dependencies: false,
-            workspace_diagnostics: false,
-            ..Default::default()
-        })),
+        // We use push-based diagnostics via publishDiagnostics notifications
+        // not pull-based via textDocument/diagnostic requests
         ..Default::default()
     }
 }

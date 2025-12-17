@@ -41,6 +41,7 @@ impl LynxLanguageServer {
             .await;
     }
 
+    #[allow(dead_code)]
     fn schedule_analysis(&self, uri: Url) {
         let client = self.client.clone();
         let documents = self.documents.clone();
@@ -87,7 +88,7 @@ impl LanguageServer for LynxLanguageServer {
         let uri = params.text_document.uri;
         if let Some(change) = params.content_changes.into_iter().next() {
             self.documents.update(&uri, &change.text);
-            self.schedule_analysis(uri);
+            self.analyze_and_publish(&uri).await;
         }
     }
 
