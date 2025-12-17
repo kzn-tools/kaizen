@@ -5,6 +5,7 @@ use anyhow::Result;
 use clap::Args;
 use colored::Colorize;
 use lynx_core::analysis::AnalysisEngine;
+use lynx_core::config::load_config_or_default_with_warnings;
 use lynx_core::diagnostic::Diagnostic;
 use lynx_core::parser::ParsedFile;
 use lynx_core::rules::Severity;
@@ -73,6 +74,12 @@ impl From<&Diagnostic> for JsonDiagnostic {
 impl CheckArgs {
     pub fn run(&self) -> Result<()> {
         self.configure_colors();
+
+        let config_result = load_config_or_default_with_warnings(&self.path);
+        for warning in &config_result.warnings {
+            eprintln!("{} {}", "warning:".yellow().bold(), warning);
+        }
+        let _config = config_result.config;
 
         let files = discover_files(&self.path)?;
 

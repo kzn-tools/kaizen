@@ -6,8 +6,10 @@
 //! - Rule system (quality, security)
 //! - Taint analysis for security vulnerabilities
 //! - Diagnostic reporting
+//! - Configuration loading
 
 pub mod analysis;
+pub mod config;
 pub mod diagnostic;
 pub mod parser;
 pub mod rules;
