@@ -1,5 +1,6 @@
 //! Check command - analyzes JavaScript/TypeScript files for issues
 
+use crate::output::pretty::PrettyFormatter;
 use anyhow::Result;
 use clap::Args;
 use colored::Colorize;
@@ -9,6 +10,7 @@ use lynx_core::parser::ParsedFile;
 use lynx_core::rules::Severity;
 use rayon::prelude::*;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process;
@@ -22,8 +24,8 @@ pub struct CheckArgs {
     #[arg(value_name = "PATH")]
     pub path: PathBuf,
 
-    /// Output format for diagnostics
-    #[arg(short, long, default_value = "text")]
+    /// Output format for diagnostics (pretty, text, json)
+    #[arg(short, long, default_value = "pretty")]
     pub format: String,
 
     /// Fail on warnings (exit code 1)
@@ -33,6 +35,10 @@ pub struct CheckArgs {
     /// Filter diagnostics by minimum severity level (error, warning, info, hint)
     #[arg(long, value_name = "LEVEL")]
     pub severity: Option<String>,
+
+    /// Disable colored output
+    #[arg(long)]
+    pub no_color: bool,
 }
 
 #[derive(Serialize)]
@@ -66,6 +72,8 @@ impl From<&Diagnostic> for JsonDiagnostic {
 
 impl CheckArgs {
     pub fn run(&self) -> Result<()> {
+        self.configure_colors();
+
         let files = discover_files(&self.path)?;
 
         if files.is_empty() {
@@ -76,19 +84,24 @@ impl CheckArgs {
         let engine = AnalysisEngine::new();
         let min_severity = self.parse_severity()?;
 
-        let results: Vec<(PathBuf, Vec<Diagnostic>)> = files
+        let results: Vec<(PathBuf, String, Vec<Diagnostic>)> = files
             .par_iter()
             .filter_map(|file| {
                 let content = fs::read_to_string(file).ok()?;
                 let parsed = ParsedFile::from_source(&file.to_string_lossy(), &content);
                 let diagnostics = engine.analyze(&parsed);
-                Some((file.clone(), diagnostics))
+                Some((file.clone(), content, diagnostics))
             })
+            .collect();
+
+        let sources: HashMap<String, String> = results
+            .iter()
+            .map(|(path, content, _)| (path.to_string_lossy().to_string(), content.clone()))
             .collect();
 
         let all_diagnostics: Vec<Diagnostic> = results
             .into_iter()
-            .flat_map(|(_, diags)| diags)
+            .flat_map(|(_, _, diags)| diags)
             .filter(|d| severity_level(&d.severity) >= severity_level(&min_severity))
             .collect();
 
@@ -103,7 +116,8 @@ impl CheckArgs {
 
         match self.format.as_str() {
             "json" => self.output_json(&all_diagnostics)?,
-            _ => self.output_text(&all_diagnostics),
+            "text" => self.output_text(&all_diagnostics),
+            _ => self.output_pretty(&all_diagnostics, &sources),
         }
 
         let has_errors = error_count > 0;
@@ -127,6 +141,13 @@ impl CheckArgs {
                 other
             ),
             None => Ok(Severity::Hint),
+        }
+    }
+
+    fn configure_colors(&self) {
+        let no_color_env = std::env::var("NO_COLOR").is_ok();
+        if self.no_color || no_color_env {
+            colored::control::set_override(false);
         }
     }
 
@@ -177,6 +198,11 @@ impl CheckArgs {
         let json = serde_json::to_string_pretty(&json_diags)?;
         println!("{}", json);
         Ok(())
+    }
+
+    fn output_pretty(&self, diagnostics: &[Diagnostic], sources: &HashMap<String, String>) {
+        let formatter = PrettyFormatter::with_sources(sources.clone());
+        print!("{}", formatter.format(diagnostics));
     }
 }
 
@@ -346,9 +372,10 @@ mod tests {
     fn check_args_parse_severity_valid() {
         let args = CheckArgs {
             path: PathBuf::from("."),
-            format: "text".to_string(),
+            format: "pretty".to_string(),
             fail_on_warnings: false,
             severity: Some("error".to_string()),
+            no_color: false,
         };
 
         assert!(matches!(args.parse_severity().unwrap(), Severity::Error));
@@ -358,9 +385,10 @@ mod tests {
     fn check_args_parse_severity_invalid() {
         let args = CheckArgs {
             path: PathBuf::from("."),
-            format: "text".to_string(),
+            format: "pretty".to_string(),
             fail_on_warnings: false,
             severity: Some("invalid".to_string()),
+            no_color: false,
         };
 
         assert!(args.parse_severity().is_err());
@@ -378,6 +406,7 @@ mod tests {
             format: "json".to_string(),
             fail_on_warnings: false,
             severity: None,
+            no_color: false,
         };
 
         // This will exit with code 0 since we're not checking exit in tests
