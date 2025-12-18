@@ -7,7 +7,8 @@ use crate::diagnostic::Diagnostic;
 use crate::parser::ParsedFile;
 use crate::rules::RuleRegistry;
 use crate::rules::quality::{
-    Eqeqeq, FloatingPromises, NoConsole, NoEval, NoUnusedVars, NoVar, PreferUsing,
+    Eqeqeq, FloatingPromises, NoConsole, NoEval, NoUnusedVars, NoVar, PreferOptionalChaining,
+    PreferUsing,
 };
 
 pub struct AnalysisEngine {
@@ -76,6 +77,7 @@ fn create_default_registry() -> RuleRegistry {
     registry.register(Box::new(NoUnusedVars::new()));
     registry.register(Box::new(PreferUsing::new()));
     registry.register(Box::new(FloatingPromises::new()));
+    registry.register(Box::new(PreferOptionalChaining::new()));
 
     registry
 }
