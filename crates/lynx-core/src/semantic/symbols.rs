@@ -46,6 +46,13 @@ pub struct Symbol {
     pub references: Vec<Span>,
 }
 
+#[derive(Debug, Clone)]
+pub struct UnresolvedReference {
+    pub name: String,
+    pub span: Span,
+    pub scope: ScopeId,
+}
+
 pub struct SymbolTable {
     arena: Arena<Symbol>,
     by_scope: HashMap<ScopeId, HashMap<String, SymbolId>>,
