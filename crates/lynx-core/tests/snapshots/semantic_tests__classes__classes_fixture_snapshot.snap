@@ -1,0 +1,370 @@
+---
+source: crates/lynx-core/tests/semantic_tests.rs
+expression: snapshot
+---
+{
+  "scope_count": 35,
+  "scopes": [
+    {
+      "kind": "Global",
+      "children_count": 8,
+      "has_parent": false
+    },
+    {
+      "kind": "Class",
+      "children_count": 2,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Class",
+      "children_count": 3,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Class",
+      "children_count": 2,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Class",
+      "children_count": 5,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Class",
+      "children_count": 4,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "Block",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Class",
+      "children_count": 3,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Class",
+      "children_count": 2,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Class",
+      "children_count": 2,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "Class",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    }
+  ],
+  "symbol_count": 26,
+  "symbols": [
+    {
+      "name": "Animal",
+      "kind": "Class",
+      "declaration_kind": "Class",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "BankAccount",
+      "kind": "Class",
+      "declaration_kind": "Class",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "Circle",
+      "kind": "Class",
+      "declaration_kind": "Class",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "Dog",
+      "kind": "Class",
+      "declaration_kind": "Class",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "Inner",
+      "kind": "Class",
+      "declaration_kind": "Class",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "MathUtils",
+      "kind": "Class",
+      "declaration_kind": "Class",
+      "is_exported": false,
+      "references_count": 2
+    },
+    {
+      "name": "Outer",
+      "kind": "Class",
+      "declaration_kind": "Class",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "Rectangle",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "Temperature",
+      "kind": "Class",
+      "declaration_kind": "Class",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "amount",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "amount",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "breed",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "celsius",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "height",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "initialBalance",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "name",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "name",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "outerValue",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "owner",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "radius",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "radius",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "value",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "value",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "value",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "width",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "x",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 2
+    }
+  ],
+  "unresolved_count": 2
+}

@@ -1,0 +1,221 @@
+---
+source: crates/lynx-core/tests/semantic_tests.rs
+expression: snapshot
+---
+{
+  "scope_count": 8,
+  "scopes": [
+    {
+      "kind": "Global",
+      "children_count": 4,
+      "has_parent": false
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Class",
+      "children_count": 2,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Class",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "ArrowFunction",
+      "children_count": 0,
+      "has_parent": true
+    }
+  ],
+  "symbol_count": 24,
+  "symbols": [
+    {
+      "name": "API_URL",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": true,
+      "references_count": 0
+    },
+    {
+      "name": "Config",
+      "kind": "Import",
+      "declaration_kind": "Import",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "DefaultClass",
+      "kind": "Import",
+      "declaration_kind": "Import",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "MainModule",
+      "kind": "Class",
+      "declaration_kind": "Class",
+      "is_exported": true,
+      "references_count": 0
+    },
+    {
+      "name": "React",
+      "kind": "Import",
+      "declaration_kind": "Import",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "Service",
+      "kind": "Class",
+      "declaration_kind": "Class",
+      "is_exported": true,
+      "references_count": 0
+    },
+    {
+      "name": "VERSION",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": true,
+      "references_count": 0
+    },
+    {
+      "name": "anotherPrivate",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "config",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "data",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "err",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "fullPath",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "helper",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": true,
+      "references_count": 0
+    },
+    {
+      "name": "join",
+      "kind": "Import",
+      "declaration_kind": "Import",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "name",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "privateValue",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "readFile",
+      "kind": "Import",
+      "declaration_kind": "Import",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "resolve",
+      "kind": "Import",
+      "declaration_kind": "Import",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "state",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "useEffect",
+      "kind": "Import",
+      "declaration_kind": "Import",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "useState",
+      "kind": "Import",
+      "declaration_kind": "Import",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "utils",
+      "kind": "Import",
+      "declaration_kind": "Import",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "writeFile",
+      "kind": "Import",
+      "declaration_kind": "Import",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "x",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    }
+  ],
+  "unresolved_count": 4
+}

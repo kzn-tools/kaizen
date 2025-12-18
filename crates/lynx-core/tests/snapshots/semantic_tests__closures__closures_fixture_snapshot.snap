@@ -1,0 +1,323 @@
+---
+source: crates/lynx-core/tests/semantic_tests.rs
+expression: snapshot
+---
+{
+  "scope_count": 20,
+  "scopes": [
+    {
+      "kind": "Global",
+      "children_count": 9,
+      "has_parent": false
+    },
+    {
+      "kind": "ArrowFunction",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 3,
+      "has_parent": true
+    },
+    {
+      "kind": "ArrowFunction",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "ArrowFunction",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "ArrowFunction",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "ArrowFunction",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "ArrowFunction",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "ArrowFunction",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "For",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "Block",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "ArrowFunction",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "ArrowFunction",
+      "children_count": 0,
+      "has_parent": true
+    }
+  ],
+  "symbol_count": 30,
+  "symbols": [
+    {
+      "name": "a",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "add5",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "b",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "c",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "closures",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "count",
+      "kind": "Variable",
+      "declaration_kind": "Let",
+      "is_exported": false,
+      "references_count": 5
+    },
+    {
+      "name": "createCounter",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "double",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "formatted",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "getShadowed",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "i",
+      "kind": "Variable",
+      "declaration_kind": "Let",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "initial",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "inner",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "makeAdder",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "middle",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "multiplier",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "n",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "numbers",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "obj",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "outer",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "prefix",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "privateValue",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "result",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "shadowExample",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "shadowTest",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "shadowTest",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "x",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "x",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "x",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "y",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    }
+  ],
+  "unresolved_count": 0
+}

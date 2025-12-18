@@ -1,0 +1,502 @@
+---
+source: crates/lynx-core/tests/semantic_tests.rs
+expression: snapshot
+---
+{
+  "scope_count": 25,
+  "scopes": [
+    {
+      "kind": "Global",
+      "children_count": 16,
+      "has_parent": false
+    },
+    {
+      "kind": "Block",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "Block",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Block",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "Block",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "ArrowFunction",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "For",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "Block",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Try",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Catch",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Block",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "For",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "Block",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "For",
+      "children_count": 1,
+      "has_parent": true
+    },
+    {
+      "kind": "Block",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    }
+  ],
+  "symbol_count": 52,
+  "symbols": [
+    {
+      "name": "a",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "a",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "a",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "a",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "arr",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "asyncExample",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "b",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "b",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "b",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "beforeLet",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "c",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "catchScoped",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "computed",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "defaults",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "e",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "error",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "evalAndArgs",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "finallyScoped",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "first",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "first",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "fourth",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "g",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "generator",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "hoisted",
+      "kind": "Variable",
+      "declaration_kind": "Var",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "i",
+      "kind": "Variable",
+      "declaration_kind": "Let",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "insideIf",
+      "kind": "Variable",
+      "declaration_kind": "Var",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "items",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "j",
+      "kind": "Variable",
+      "declaration_kind": "Let",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "key",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "letVar",
+      "kind": "Variable",
+      "declaration_kind": "Let",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "obj",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "param",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "param",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "propName",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 2
+    },
+    {
+      "name": "redeclared",
+      "kind": "Variable",
+      "declaration_kind": "Var",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "redeclared",
+      "kind": "Variable",
+      "declaration_kind": "Var",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "renamed",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "rest",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "rest",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "restParams",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "result",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "result",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "second",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "shadow",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "shadow",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "tdzExample",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "useParam",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "value",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "varHoisting",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "x",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "x",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "x",
+      "kind": "Constant",
+      "declaration_kind": "Const",
+      "is_exported": false,
+      "references_count": 1
+    }
+  ],
+  "unresolved_count": 17
+}
