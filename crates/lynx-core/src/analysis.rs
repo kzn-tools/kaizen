@@ -6,7 +6,7 @@ use crate::config::Config;
 use crate::diagnostic::Diagnostic;
 use crate::parser::ParsedFile;
 use crate::rules::RuleRegistry;
-use crate::rules::quality::{Eqeqeq, NoConsole, NoEval, NoUnusedVars, NoVar};
+use crate::rules::quality::{Eqeqeq, NoConsole, NoEval, NoUnusedVars, NoVar, PreferUsing};
 
 pub struct AnalysisEngine {
     registry: RuleRegistry,
@@ -72,6 +72,7 @@ fn create_default_registry() -> RuleRegistry {
     registry.register(Box::new(NoConsole::new()));
     registry.register(Box::new(NoEval::new()));
     registry.register(Box::new(NoUnusedVars::new()));
+    registry.register(Box::new(PreferUsing::new()));
 
     registry
 }
