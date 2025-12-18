@@ -81,10 +81,8 @@ fn custom_types_can_be_registered() {
     ));
 
     // Register custom return type mapping
-    registry.register_return_type_mapping(
-        "db.connect".to_string(),
-        "DatabaseConnection".to_string(),
-    );
+    registry
+        .register_return_type_mapping("db.connect".to_string(), "DatabaseConnection".to_string());
 
     // Verify it works
     assert!(registry.is_disposable("DatabaseConnection"));
