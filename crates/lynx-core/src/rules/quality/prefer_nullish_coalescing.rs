@@ -66,12 +66,8 @@ impl PreferNullishCoalescingVisitor {
             let right_name = right_id.sym.to_string().to_lowercase();
 
             let boolean_prefixes = ["is", "has", "can", "should", "will", "did", "was"];
-            let is_left_boolean = boolean_prefixes
-                .iter()
-                .any(|p| left_name.starts_with(p));
-            let is_right_boolean = boolean_prefixes
-                .iter()
-                .any(|p| right_name.starts_with(p));
+            let is_left_boolean = boolean_prefixes.iter().any(|p| left_name.starts_with(p));
+            let is_right_boolean = boolean_prefixes.iter().any(|p| right_name.starts_with(p));
 
             if is_left_boolean && is_right_boolean {
                 return true;
