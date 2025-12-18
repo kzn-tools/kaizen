@@ -3,7 +3,8 @@
 use std::ops::ControlFlow;
 
 use swc_ecma_ast::{
-    ArrowExpr, BinExpr, CallExpr, ClassDecl, FnDecl, Function, Ident, MemberExpr, NewExpr, VarDecl,
+    ArrowExpr, AssignExpr, BinExpr, CallExpr, ClassDecl, FnDecl, Function, Ident, MemberExpr,
+    NewExpr, UpdateExpr, VarDecl,
 };
 
 use super::context::VisitorContext;
@@ -46,6 +47,14 @@ pub trait AstVisitor {
     }
 
     fn visit_new_expr(&mut self, _node: &NewExpr, _ctx: &VisitorContext) -> ControlFlow<()> {
+        ControlFlow::Continue(())
+    }
+
+    fn visit_assign_expr(&mut self, _node: &AssignExpr, _ctx: &VisitorContext) -> ControlFlow<()> {
+        ControlFlow::Continue(())
+    }
+
+    fn visit_update_expr(&mut self, _node: &UpdateExpr, _ctx: &VisitorContext) -> ControlFlow<()> {
         ControlFlow::Continue(())
     }
 }

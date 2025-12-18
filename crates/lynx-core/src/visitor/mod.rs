@@ -129,6 +129,28 @@ impl<V: AstVisitor> Visit for Walker<'_, V> {
         }
         node.visit_children_with(self);
     }
+
+    fn visit_assign_expr(&mut self, node: &swc_ecma_ast::AssignExpr) {
+        if self.stopped {
+            return;
+        }
+        if let ControlFlow::Break(()) = self.visitor.visit_assign_expr(node, self.ctx) {
+            self.stopped = true;
+            return;
+        }
+        node.visit_children_with(self);
+    }
+
+    fn visit_update_expr(&mut self, node: &swc_ecma_ast::UpdateExpr) {
+        if self.stopped {
+            return;
+        }
+        if let ControlFlow::Break(()) = self.visitor.visit_update_expr(node, self.ctx) {
+            self.stopped = true;
+            return;
+        }
+        node.visit_children_with(self);
+    }
 }
 
 pub fn walk_ast<V: AstVisitor>(module: &Module, visitor: &mut V, ctx: &VisitorContext) {

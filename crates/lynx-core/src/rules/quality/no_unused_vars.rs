@@ -1,15 +1,22 @@
 //! no-unused-vars rule (Q001): Detects variables declared but never used
+//!
+//! This rule uses SemanticModel for scope-aware unused variable detection.
+//! It correctly handles:
+//! - Variables used in closures (cross-scope references)
+//! - Underscore-prefixed variables (intentionally unused)
+//! - Write-only variables (assigned but never read)
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::ops::ControlFlow;
 
 use swc_common::Span;
-use swc_ecma_ast::{ArrowExpr, FnDecl, Ident, ModuleDecl, ModuleItem, Pat, VarDecl};
+use swc_ecma_ast::{AssignTarget, Expr, SimpleAssignTarget};
 
 use crate::declare_rule;
 use crate::diagnostic::Diagnostic;
 use crate::parser::ParsedFile;
 use crate::rules::{Rule, RuleMetadata, Severity};
+use crate::semantic::visitor::ScopeBuilder;
 use crate::visitor::{AstVisitor, VisitorContext, walk_ast};
 
 declare_rule!(
@@ -22,11 +29,6 @@ declare_rule!(
     examples = "// Bad\nconst unused = 1;\n\n// Good\nconst used = 1;\nconsole.log(used);\n\n// Allowed (underscore prefix)\nconst _intentionallyUnused = 1;"
 );
 
-struct Declaration {
-    span: Span,
-    is_exported: bool,
-}
-
 impl Rule for NoUnusedVars {
     fn metadata(&self) -> &RuleMetadata {
         &self.metadata
@@ -38,50 +40,52 @@ impl Rule for NoUnusedVars {
         };
 
         let ctx = VisitorContext::new(file);
+        let semantic = ScopeBuilder::build(module);
 
-        let exported_names = collect_exported_names(module);
-
-        let mut declaration_visitor = DeclarationCollector {
-            declarations: HashMap::new(),
-            exported_names: &exported_names,
+        let mut write_only_collector = WriteOnlyCollector {
+            write_only_spans: HashSet::new(),
         };
-        walk_ast(module, &mut declaration_visitor, &ctx);
-
-        let mut reference_visitor = ReferenceCollector {
-            references: HashSet::new(),
-            declaration_spans: declaration_visitor
-                .declarations
-                .values()
-                .map(|d| d.span)
-                .collect(),
-        };
-        walk_ast(module, &mut reference_visitor, &ctx);
+        walk_ast(module, &mut write_only_collector, &ctx);
 
         let mut diagnostics = Vec::new();
         let file_path = file.metadata().filename.clone();
 
-        for (name, decl) in declaration_visitor.declarations {
-            if decl.is_exported {
+        for symbol in semantic.symbol_table.all_symbols() {
+            if symbol.is_exported {
                 continue;
             }
 
-            if name.starts_with('_') {
+            if symbol.name.starts_with('_') {
                 continue;
             }
 
-            if !reference_visitor.references.contains(&name) {
-                let (line, column) = ctx.span_to_location(decl.span);
+            let is_unused = symbol.references.is_empty();
+            let is_write_only = !symbol.references.is_empty()
+                && symbol
+                    .references
+                    .iter()
+                    .all(|span| write_only_collector.write_only_spans.contains(span));
+
+            if is_unused || is_write_only {
+                let (line, column) = ctx.span_to_location(symbol.span);
+
+                let message = if is_write_only {
+                    format!("'{}' is assigned a value but never read", symbol.name)
+                } else {
+                    format!("'{}' is declared but never used", symbol.name)
+                };
+
                 let diagnostic = Diagnostic::new(
                     "Q001",
                     Severity::Warning,
-                    format!("'{}' is declared but never used", name),
+                    message,
                     &file_path,
                     line,
                     column,
                 )
                 .with_suggestion(format!(
                     "Remove unused variable '{}' or prefix with underscore if intentionally unused",
-                    name
+                    symbol.name
                 ));
 
                 diagnostics.push(diagnostic);
@@ -92,142 +96,29 @@ impl Rule for NoUnusedVars {
     }
 }
 
-fn collect_exported_names(module: &swc_ecma_ast::Module) -> HashSet<String> {
-    let mut exported = HashSet::new();
-
-    for item in &module.body {
-        if let ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) = item {
-            if let swc_ecma_ast::Decl::Var(var_decl) = &export_decl.decl {
-                for declarator in &var_decl.decls {
-                    collect_names_from_pat(&declarator.name, &mut exported);
-                }
-            }
-            if let swc_ecma_ast::Decl::Fn(fn_decl) = &export_decl.decl {
-                exported.insert(fn_decl.ident.sym.to_string());
-            }
-        }
-    }
-
-    exported
+struct WriteOnlyCollector {
+    write_only_spans: HashSet<Span>,
 }
 
-fn collect_names_from_pat(pat: &Pat, names: &mut HashSet<String>) {
-    match pat {
-        Pat::Ident(binding_ident) => {
-            names.insert(binding_ident.id.sym.to_string());
-        }
-        Pat::Array(array_pat) => {
-            for elem in array_pat.elems.iter().flatten() {
-                collect_names_from_pat(elem, names);
-            }
-        }
-        Pat::Object(object_pat) => {
-            for prop in &object_pat.props {
-                match prop {
-                    swc_ecma_ast::ObjectPatProp::KeyValue(kv) => {
-                        collect_names_from_pat(&kv.value, names);
-                    }
-                    swc_ecma_ast::ObjectPatProp::Assign(assign) => {
-                        names.insert(assign.key.sym.to_string());
-                    }
-                    swc_ecma_ast::ObjectPatProp::Rest(rest) => {
-                        collect_names_from_pat(&rest.arg, names);
-                    }
-                }
-            }
-        }
-        Pat::Rest(rest_pat) => {
-            collect_names_from_pat(&rest_pat.arg, names);
-        }
-        Pat::Assign(assign_pat) => {
-            collect_names_from_pat(&assign_pat.left, names);
-        }
-        Pat::Invalid(_) | Pat::Expr(_) => {}
-    }
-}
-
-struct DeclarationCollector<'a> {
-    declarations: HashMap<String, Declaration>,
-    exported_names: &'a HashSet<String>,
-}
-
-impl AstVisitor for DeclarationCollector<'_> {
-    fn visit_var_decl(&mut self, node: &VarDecl, _ctx: &VisitorContext) -> ControlFlow<()> {
-        for declarator in &node.decls {
-            self.collect_from_pat(&declarator.name);
+impl AstVisitor for WriteOnlyCollector {
+    fn visit_assign_expr(
+        &mut self,
+        node: &swc_ecma_ast::AssignExpr,
+        _ctx: &VisitorContext,
+    ) -> ControlFlow<()> {
+        if let AssignTarget::Simple(SimpleAssignTarget::Ident(ident)) = &node.left {
+            self.write_only_spans.insert(ident.span);
         }
         ControlFlow::Continue(())
     }
 
-    fn visit_fn_decl(&mut self, node: &FnDecl, _ctx: &VisitorContext) -> ControlFlow<()> {
-        for param in &node.function.params {
-            self.collect_from_pat(&param.pat);
-        }
-        ControlFlow::Continue(())
-    }
-
-    fn visit_arrow_expr(&mut self, node: &ArrowExpr, _ctx: &VisitorContext) -> ControlFlow<()> {
-        for param in &node.params {
-            self.collect_from_pat(param);
-        }
-        ControlFlow::Continue(())
-    }
-}
-
-impl DeclarationCollector<'_> {
-    fn collect_from_pat(&mut self, pat: &Pat) {
-        match pat {
-            Pat::Ident(binding_ident) => {
-                let name = binding_ident.id.sym.to_string();
-                let is_exported = self.exported_names.contains(&name);
-                let span = binding_ident.id.span;
-                self.declarations
-                    .insert(name, Declaration { span, is_exported });
-            }
-            Pat::Array(array_pat) => {
-                for elem in array_pat.elems.iter().flatten() {
-                    self.collect_from_pat(elem);
-                }
-            }
-            Pat::Object(object_pat) => {
-                for prop in &object_pat.props {
-                    match prop {
-                        swc_ecma_ast::ObjectPatProp::KeyValue(kv) => {
-                            self.collect_from_pat(&kv.value);
-                        }
-                        swc_ecma_ast::ObjectPatProp::Assign(assign) => {
-                            let name = assign.key.sym.to_string();
-                            let is_exported = self.exported_names.contains(&name);
-                            let span = assign.key.span;
-                            self.declarations
-                                .insert(name, Declaration { span, is_exported });
-                        }
-                        swc_ecma_ast::ObjectPatProp::Rest(rest) => {
-                            self.collect_from_pat(&rest.arg);
-                        }
-                    }
-                }
-            }
-            Pat::Rest(rest_pat) => {
-                self.collect_from_pat(&rest_pat.arg);
-            }
-            Pat::Assign(assign_pat) => {
-                self.collect_from_pat(&assign_pat.left);
-            }
-            Pat::Invalid(_) | Pat::Expr(_) => {}
-        }
-    }
-}
-
-struct ReferenceCollector {
-    references: HashSet<String>,
-    declaration_spans: HashSet<Span>,
-}
-
-impl AstVisitor for ReferenceCollector {
-    fn visit_ident(&mut self, node: &Ident, _ctx: &VisitorContext) -> ControlFlow<()> {
-        if !self.declaration_spans.contains(&node.span) {
-            self.references.insert(node.sym.to_string());
+    fn visit_update_expr(
+        &mut self,
+        node: &swc_ecma_ast::UpdateExpr,
+        _ctx: &VisitorContext,
+    ) -> ControlFlow<()> {
+        if let Expr::Ident(ident) = node.arg.as_ref() {
+            self.write_only_spans.insert(ident.span);
         }
         ControlFlow::Continue(())
     }
@@ -373,5 +264,199 @@ greet("hello", "world");
 
         assert_eq!(diagnostics.len(), 1);
         assert!(diagnostics[0].suggestion.is_some());
+    }
+
+    // === Acceptance Criteria Tests ===
+
+    #[test]
+    fn closure_variable_not_flagged() {
+        let code = r#"
+function createCounter() {
+    let count = 0;
+    return function() {
+        count++;
+        return count;
+    };
+}
+createCounter();
+"#;
+        let diagnostics = run_no_unused_vars(code);
+
+        let count_unused = diagnostics.iter().any(|d| d.message.contains("count"));
+        assert!(
+            !count_unused,
+            "Variable used in closure should not be flagged"
+        );
+    }
+
+    #[test]
+    fn closure_with_arrow_function() {
+        let code = r#"
+function outer() {
+    const value = 42;
+    const inner = () => value * 2;
+    return inner;
+}
+outer();
+"#;
+        let diagnostics = run_no_unused_vars(code);
+
+        assert!(
+            diagnostics.is_empty(),
+            "Variables used in arrow function closures should not be flagged"
+        );
+    }
+
+    #[test]
+    fn nested_closure_variable_not_flagged() {
+        let code = r#"
+function outer(a) {
+    function middle(b) {
+        function inner(c) {
+            return a + b + c;
+        }
+        return inner;
+    }
+    return middle;
+}
+outer(1);
+"#;
+        let diagnostics = run_no_unused_vars(code);
+
+        assert!(
+            diagnostics.is_empty(),
+            "Variables used across nested closures should not be flagged"
+        );
+    }
+
+    #[test]
+    fn underscore_prefix_respected() {
+        let code = r#"
+const _unused1 = 1;
+let _unused2 = 2;
+var _unused3 = 3;
+function foo(_unusedParam) {
+    return 42;
+}
+foo(1);
+"#;
+        let diagnostics = run_no_unused_vars(code);
+
+        assert!(
+            diagnostics.is_empty(),
+            "Variables with underscore prefix should not be flagged"
+        );
+    }
+
+    #[test]
+    fn write_only_variable_detected() {
+        let code = r#"
+let x = 1;
+x = 2;
+x = 3;
+"#;
+        let diagnostics = run_no_unused_vars(code);
+
+        assert_eq!(diagnostics.len(), 1);
+        assert!(diagnostics[0].message.contains("x"));
+        assert!(
+            diagnostics[0].message.contains("assigned")
+                && diagnostics[0].message.contains("never read"),
+            "Write-only variable should have specific message"
+        );
+    }
+
+    #[test]
+    fn write_only_with_increment() {
+        let code = r#"
+let counter = 0;
+counter++;
+counter++;
+"#;
+        let diagnostics = run_no_unused_vars(code);
+
+        assert_eq!(diagnostics.len(), 1);
+        assert!(diagnostics[0].message.contains("counter"));
+    }
+
+    #[test]
+    fn variable_read_and_written_not_flagged() {
+        let code = r#"
+let x = 1;
+x = x + 1;
+console.log(x);
+"#;
+        let diagnostics = run_no_unused_vars(code);
+
+        assert!(
+            diagnostics.is_empty(),
+            "Variable that is both read and written should not be flagged"
+        );
+    }
+
+    #[test]
+    fn shadowed_variable_in_closure() {
+        let code = r#"
+const x = 1;
+function foo() {
+    const x = 2;
+    return x;
+}
+console.log(x);
+foo();
+"#;
+        let diagnostics = run_no_unused_vars(code);
+
+        assert!(
+            diagnostics.is_empty(),
+            "Shadowed variables should be tracked separately"
+        );
+    }
+
+    #[test]
+    fn function_expression_in_closure() {
+        let code = r#"
+const data = [1, 2, 3];
+const result = data.map(function(item) {
+    return item * 2;
+});
+console.log(result);
+"#;
+        let diagnostics = run_no_unused_vars(code);
+
+        assert!(
+            diagnostics.is_empty(),
+            "Parameters in function expressions should be tracked"
+        );
+    }
+
+    #[test]
+    fn callback_parameter_used() {
+        let code = r#"
+const items = [1, 2, 3];
+items.forEach((item, index) => {
+    console.log(index, item);
+});
+"#;
+        let diagnostics = run_no_unused_vars(code);
+
+        assert!(
+            diagnostics.is_empty(),
+            "Used callback parameters should not be flagged"
+        );
+    }
+
+    #[test]
+    fn callback_parameter_unused() {
+        let code = r#"
+const items = [1, 2, 3];
+items.forEach((item, index) => {
+    console.log(item);
+});
+"#;
+        let diagnostics = run_no_unused_vars(code);
+
+        assert_eq!(diagnostics.len(), 1);
+        assert!(diagnostics[0].message.contains("index"));
     }
 }
