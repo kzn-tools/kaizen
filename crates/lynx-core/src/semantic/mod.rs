@@ -4,3 +4,5 @@
 
 pub mod cfg;
 pub mod scope;
+
+pub use scope::{AncestorIter, Scope, ScopeId, ScopeKind, ScopeTree};
