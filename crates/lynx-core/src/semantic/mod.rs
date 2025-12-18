@@ -5,10 +5,12 @@
 pub mod cfg;
 pub mod scope;
 pub mod symbols;
+pub mod types;
 pub mod visitor;
 
 pub use scope::{AncestorIter, Scope, ScopeId, ScopeKind, ScopeTree};
 pub use symbols::{
     DeclarationKind, Symbol, SymbolId, SymbolKind, SymbolTable, UnresolvedReference,
 };
+pub use types::{DisposableSource, DisposableTypeInfo, DisposableTypesRegistry};
 pub use visitor::{ScopeBuilder, SemanticModel};
