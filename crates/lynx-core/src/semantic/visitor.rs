@@ -10,13 +10,17 @@ use swc_ecma_ast::{
     WhileStmt,
 };
 
+use std::collections::HashSet;
+
 use super::scope::{ScopeId, ScopeKind, ScopeTree};
-use super::symbols::{DeclarationKind, SymbolKind, SymbolTable};
+use super::symbols::{DeclarationKind, SymbolKind, SymbolTable, UnresolvedReference};
 
 pub struct ScopeBuilder {
     pub scope_tree: ScopeTree,
     pub symbol_table: SymbolTable,
     current_scope: Option<ScopeId>,
+    declaration_spans: HashSet<Span>,
+    unresolved_references: Vec<UnresolvedReference>,
 }
 
 impl Default for ScopeBuilder {
@@ -25,19 +29,31 @@ impl Default for ScopeBuilder {
     }
 }
 
+pub struct SemanticModel {
+    pub scope_tree: ScopeTree,
+    pub symbol_table: SymbolTable,
+    pub unresolved_references: Vec<UnresolvedReference>,
+}
+
 impl ScopeBuilder {
     pub fn new() -> Self {
         Self {
             scope_tree: ScopeTree::new(),
             symbol_table: SymbolTable::new(),
             current_scope: None,
+            declaration_spans: HashSet::new(),
+            unresolved_references: Vec::new(),
         }
     }
 
-    pub fn build(module: &Module) -> (ScopeTree, SymbolTable) {
+    pub fn build(module: &Module) -> SemanticModel {
         let mut builder = Self::new();
         builder.visit_module(module);
-        (builder.scope_tree, builder.symbol_table)
+        SemanticModel {
+            scope_tree: builder.scope_tree,
+            symbol_table: builder.symbol_table,
+            unresolved_references: builder.unresolved_references,
+        }
     }
 
     fn visit_module(&mut self, module: &Module) {
@@ -466,6 +482,9 @@ impl ScopeBuilder {
 
     fn visit_expr(&mut self, expr: &swc_ecma_ast::Expr) {
         match expr {
+            swc_ecma_ast::Expr::Ident(ident) => {
+                self.visit_ident_reference(ident);
+            }
             swc_ecma_ast::Expr::Arrow(arrow) => self.visit_arrow_expr(arrow),
             swc_ecma_ast::Expr::Fn(fn_expr) => {
                 if let Some(ident) = &fn_expr.ident {
@@ -487,6 +506,20 @@ impl ScopeBuilder {
                     self.visit_expr(&arg.expr);
                 }
             }
+            swc_ecma_ast::Expr::New(new_expr) => {
+                self.visit_expr(&new_expr.callee);
+                if let Some(args) = &new_expr.args {
+                    for arg in args {
+                        self.visit_expr(&arg.expr);
+                    }
+                }
+            }
+            swc_ecma_ast::Expr::Member(member) => {
+                self.visit_expr(&member.obj);
+                if let swc_ecma_ast::MemberProp::Computed(computed) = &member.prop {
+                    self.visit_expr(&computed.expr);
+                }
+            }
             swc_ecma_ast::Expr::Array(arr) => {
                 for elem in arr.elems.iter().flatten() {
                     self.visit_expr(&elem.expr);
@@ -494,12 +527,21 @@ impl ScopeBuilder {
             }
             swc_ecma_ast::Expr::Object(obj) => {
                 for prop in &obj.props {
-                    if let swc_ecma_ast::PropOrSpread::Prop(prop) = prop {
-                        match prop.as_ref() {
+                    match prop {
+                        swc_ecma_ast::PropOrSpread::Spread(spread) => {
+                            self.visit_expr(&spread.expr);
+                        }
+                        swc_ecma_ast::PropOrSpread::Prop(prop) => match prop.as_ref() {
+                            swc_ecma_ast::Prop::Shorthand(ident) => {
+                                self.visit_ident_reference(ident);
+                            }
                             swc_ecma_ast::Prop::Method(method) => {
                                 self.visit_function(&method.function, None);
                             }
                             swc_ecma_ast::Prop::KeyValue(kv) => {
+                                if let swc_ecma_ast::PropName::Computed(computed) = &kv.key {
+                                    self.visit_expr(&computed.expr);
+                                }
                                 self.visit_expr(&kv.value);
                             }
                             swc_ecma_ast::Prop::Getter(getter) => {
@@ -538,8 +580,10 @@ impl ScopeBuilder {
                                     self.current_scope = parent;
                                 }
                             }
-                            _ => {}
-                        }
+                            swc_ecma_ast::Prop::Assign(assign) => {
+                                self.visit_expr(&assign.value);
+                            }
+                        },
                     }
                 }
             }
@@ -555,7 +599,101 @@ impl ScopeBuilder {
                 }
                 self.visit_class(&class_expr.class);
             }
+            swc_ecma_ast::Expr::Assign(assign) => {
+                if let swc_ecma_ast::AssignTarget::Simple(
+                    swc_ecma_ast::SimpleAssignTarget::Ident(ident),
+                ) = &assign.left
+                {
+                    self.visit_ident_reference(&ident.id);
+                } else {
+                    self.visit_assign_target(&assign.left);
+                }
+                self.visit_expr(&assign.right);
+            }
+            swc_ecma_ast::Expr::Bin(bin) => {
+                self.visit_expr(&bin.left);
+                self.visit_expr(&bin.right);
+            }
+            swc_ecma_ast::Expr::Unary(unary) => {
+                self.visit_expr(&unary.arg);
+            }
+            swc_ecma_ast::Expr::Update(update) => {
+                self.visit_expr(&update.arg);
+            }
+            swc_ecma_ast::Expr::Cond(cond) => {
+                self.visit_expr(&cond.test);
+                self.visit_expr(&cond.cons);
+                self.visit_expr(&cond.alt);
+            }
+            swc_ecma_ast::Expr::Seq(seq) => {
+                for expr in &seq.exprs {
+                    self.visit_expr(expr);
+                }
+            }
+            swc_ecma_ast::Expr::Paren(paren) => {
+                self.visit_expr(&paren.expr);
+            }
+            swc_ecma_ast::Expr::Tpl(tpl) => {
+                for expr in &tpl.exprs {
+                    self.visit_expr(expr);
+                }
+            }
+            swc_ecma_ast::Expr::TaggedTpl(tagged) => {
+                self.visit_expr(&tagged.tag);
+                for expr in &tagged.tpl.exprs {
+                    self.visit_expr(expr);
+                }
+            }
+            swc_ecma_ast::Expr::Yield(yield_expr) => {
+                if let Some(arg) = &yield_expr.arg {
+                    self.visit_expr(arg);
+                }
+            }
+            swc_ecma_ast::Expr::Await(await_expr) => {
+                self.visit_expr(&await_expr.arg);
+            }
+            swc_ecma_ast::Expr::OptChain(opt_chain) => {
+                self.visit_opt_chain_base(&opt_chain.base);
+            }
             _ => {}
+        }
+    }
+
+    fn visit_assign_target(&mut self, target: &swc_ecma_ast::AssignTarget) {
+        match target {
+            swc_ecma_ast::AssignTarget::Simple(simple) => match simple {
+                swc_ecma_ast::SimpleAssignTarget::Ident(ident) => {
+                    self.visit_ident_reference(&ident.id);
+                }
+                swc_ecma_ast::SimpleAssignTarget::Member(member) => {
+                    self.visit_expr(&member.obj);
+                    if let swc_ecma_ast::MemberProp::Computed(computed) = &member.prop {
+                        self.visit_expr(&computed.expr);
+                    }
+                }
+                swc_ecma_ast::SimpleAssignTarget::OptChain(opt) => {
+                    self.visit_opt_chain_base(&opt.base);
+                }
+                _ => {}
+            },
+            swc_ecma_ast::AssignTarget::Pat(_) => {}
+        }
+    }
+
+    fn visit_opt_chain_base(&mut self, base: &swc_ecma_ast::OptChainBase) {
+        match base {
+            swc_ecma_ast::OptChainBase::Member(member) => {
+                self.visit_expr(&member.obj);
+                if let swc_ecma_ast::MemberProp::Computed(computed) = &member.prop {
+                    self.visit_expr(&computed.expr);
+                }
+            }
+            swc_ecma_ast::OptChainBase::Call(call) => {
+                self.visit_expr(&call.callee);
+                for arg in &call.args {
+                    self.visit_expr(&arg.expr);
+                }
+            }
         }
     }
 
@@ -661,8 +799,31 @@ impl ScopeBuilder {
             self.current_scope.expect("no current scope")
         };
 
+        self.declaration_spans.insert(span);
         self.symbol_table
             .declare(name, kind, decl_kind, scope, span, is_exported);
+    }
+
+    fn visit_ident_reference(&mut self, ident: &swc_ecma_ast::Ident) {
+        if self.declaration_spans.contains(&ident.span) {
+            return;
+        }
+
+        let current_scope = self.current_scope.expect("no current scope");
+        let name = ident.sym.as_str();
+
+        if let Some(symbol_id) = self
+            .symbol_table
+            .lookup(name, current_scope, &self.scope_tree)
+        {
+            self.symbol_table.add_reference(symbol_id, ident.span);
+        } else {
+            self.unresolved_references.push(UnresolvedReference {
+                name: name.to_string(),
+                span: ident.span,
+                scope: current_scope,
+            });
+        }
     }
 
     fn find_hoisting_scope(&self) -> ScopeId {
@@ -686,7 +847,7 @@ mod tests {
     use super::*;
     use crate::parser::ParsedFile;
 
-    fn build_from_source(code: &str) -> (ScopeTree, SymbolTable) {
+    fn build_from_source(code: &str) -> SemanticModel {
         let parsed = ParsedFile::from_source("test.js", code);
         let module = parsed.module().expect("parse failed");
         ScopeBuilder::build(module)
@@ -694,14 +855,21 @@ mod tests {
 
     #[test]
     fn creates_global_scope() {
-        let (tree, _) = build_from_source("");
-        assert!(tree.root().is_some());
-        assert_eq!(tree.get(tree.root().unwrap()).kind, ScopeKind::Global);
+        let model = build_from_source("");
+        assert!(model.scope_tree.root().is_some());
+        assert_eq!(
+            model.scope_tree.get(model.scope_tree.root().unwrap()).kind,
+            ScopeKind::Global
+        );
     }
 
     #[test]
     fn collects_const_declaration() {
-        let (tree, symbols) = build_from_source("const x = 1;");
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source("const x = 1;");
 
         let global = tree.root().unwrap();
         let found = symbols.lookup("x", global, &tree);
@@ -715,7 +883,11 @@ mod tests {
 
     #[test]
     fn collects_let_declaration() {
-        let (tree, symbols) = build_from_source("let y = 2;");
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source("let y = 2;");
 
         let global = tree.root().unwrap();
         let found = symbols.lookup("y", global, &tree);
@@ -729,7 +901,11 @@ mod tests {
 
     #[test]
     fn collects_var_declaration() {
-        let (tree, symbols) = build_from_source("var z = 3;");
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source("var z = 3;");
 
         let global = tree.root().unwrap();
         let found = symbols.lookup("z", global, &tree);
@@ -748,7 +924,11 @@ function add(a, b) {
     return a + b;
 }
 "#;
-        let (tree, symbols) = build_from_source(code);
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
 
         let global = tree.root().unwrap();
 
@@ -776,7 +956,11 @@ function test() {
     }
 }
 "#;
-        let (tree, symbols) = build_from_source(code);
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
 
         let global = tree.root().unwrap();
         let func_scope = tree.get(global).children[0];
@@ -798,7 +982,11 @@ function test() {
     }
 }
 "#;
-        let (tree, symbols) = build_from_source(code);
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
 
         let global = tree.root().unwrap();
         let func_scope = tree.get(global).children[0];
@@ -821,7 +1009,11 @@ const fn = (x, y) => {
     return z;
 };
 "#;
-        let (tree, symbols) = build_from_source(code);
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
 
         let global = tree.root().unwrap();
 
@@ -846,7 +1038,11 @@ for (let i = 0; i < 10; i++) {
     console.log(i);
 }
 "#;
-        let (tree, symbols) = build_from_source(code);
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
 
         let global = tree.root().unwrap();
         let for_scope = tree.get(global).children[0];
@@ -868,7 +1064,11 @@ try {
     console.log(err);
 }
 "#;
-        let (tree, symbols) = build_from_source(code);
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
 
         let global = tree.root().unwrap();
 
@@ -888,7 +1088,11 @@ try {
 const { a, b: renamed, ...rest } = obj;
 const [x, y, ...others] = arr;
 "#;
-        let (tree, symbols) = build_from_source(code);
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
 
         let global = tree.root().unwrap();
 
@@ -910,7 +1114,11 @@ function outer(a) {
     return inner;
 }
 "#;
-        let (tree, symbols) = build_from_source(code);
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
 
         let global = tree.root().unwrap();
         let outer_scope = tree.get(global).children[0];
@@ -937,7 +1145,11 @@ class MyClass {
     }
 }
 "#;
-        let (tree, symbols) = build_from_source(code);
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
 
         let global = tree.root().unwrap();
 
@@ -955,7 +1167,11 @@ class MyClass {
 export const exported = 1;
 const notExported = 2;
 "#;
-        let (tree, symbols) = build_from_source(code);
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
 
         let global = tree.root().unwrap();
 
@@ -973,7 +1189,11 @@ import defaultExport from 'module';
 import { named } from 'module';
 import * as namespace from 'module';
 "#;
-        let (tree, symbols) = build_from_source(code);
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
 
         let global = tree.root().unwrap();
 
@@ -1001,7 +1221,11 @@ function test() {
     console.log(i);
 }
 "#;
-        let (tree, symbols) = build_from_source(code);
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
 
         let global = tree.root().unwrap();
         let func_scope = tree.get(global).children[0];
@@ -1013,7 +1237,11 @@ function test() {
     #[test]
     fn multiple_var_declarations() {
         let code = "var a = 1, b = 2, c = 3;";
-        let (tree, symbols) = build_from_source(code);
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
 
         let global = tree.root().unwrap();
 
@@ -1034,7 +1262,11 @@ switch (x) {
         break;
 }
 "#;
-        let (tree, symbols) = build_from_source(code);
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
 
         let global = tree.root().unwrap();
         let switch_scope = tree.get(global).children[0];
@@ -1053,10 +1285,225 @@ while (true) {
     let x = 1;
 }
 "#;
-        let (tree, _symbols) = build_from_source(code);
+        let SemanticModel {
+            scope_tree: tree, ..
+        } = build_from_source(code);
 
         let global = tree.root().unwrap();
         let while_scope = tree.get(global).children[0];
         assert_eq!(tree.get(while_scope).kind, ScopeKind::While);
+    }
+
+    #[test]
+    fn tracks_simple_reference() {
+        let code = r#"
+const x = 1;
+console.log(x);
+"#;
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
+
+        let global = tree.root().unwrap();
+        let x_id = symbols.lookup("x", global, &tree).unwrap();
+        let x_symbol = symbols.get(x_id);
+
+        assert_eq!(x_symbol.references.len(), 1);
+    }
+
+    #[test]
+    fn tracks_multiple_references() {
+        let code = r#"
+const x = 1;
+console.log(x);
+const y = x + x;
+"#;
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
+
+        let global = tree.root().unwrap();
+        let x_id = symbols.lookup("x", global, &tree).unwrap();
+        let x_symbol = symbols.get(x_id);
+
+        assert_eq!(x_symbol.references.len(), 3);
+    }
+
+    #[test]
+    fn tracks_reference_from_inner_scope() {
+        let code = r#"
+const x = 1;
+function foo() {
+    return x;
+}
+"#;
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
+
+        let global = tree.root().unwrap();
+        let x_id = symbols.lookup("x", global, &tree).unwrap();
+        let x_symbol = symbols.get(x_id);
+
+        assert_eq!(x_symbol.references.len(), 1);
+    }
+
+    #[test]
+    fn tracks_unresolved_reference() {
+        let code = r#"
+console.log(undeclared);
+"#;
+        let SemanticModel {
+            unresolved_references,
+            ..
+        } = build_from_source(code);
+
+        let unresolved_names: Vec<&str> = unresolved_references
+            .iter()
+            .map(|r| r.name.as_str())
+            .collect();
+        assert!(unresolved_names.contains(&"console"));
+        assert!(unresolved_names.contains(&"undeclared"));
+    }
+
+    #[test]
+    fn member_expression_only_tracks_object() {
+        let code = r#"
+const obj = { prop: 1 };
+console.log(obj.prop);
+"#;
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            unresolved_references,
+            ..
+        } = build_from_source(code);
+
+        let global = tree.root().unwrap();
+        let obj_id = symbols.lookup("obj", global, &tree).unwrap();
+        let obj_symbol = symbols.get(obj_id);
+
+        assert_eq!(obj_symbol.references.len(), 1);
+
+        let has_prop_unresolved = unresolved_references.iter().any(|r| r.name == "prop");
+        assert!(!has_prop_unresolved);
+    }
+
+    #[test]
+    fn shorthand_property_tracks_reference() {
+        let code = r#"
+const x = 1;
+const obj = { x };
+"#;
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
+
+        let global = tree.root().unwrap();
+        let x_id = symbols.lookup("x", global, &tree).unwrap();
+        let x_symbol = symbols.get(x_id);
+
+        assert_eq!(x_symbol.references.len(), 1);
+    }
+
+    #[test]
+    fn assignment_tracks_reference() {
+        let code = r#"
+let x = 1;
+x = 2;
+"#;
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
+
+        let global = tree.root().unwrap();
+        let x_id = symbols.lookup("x", global, &tree).unwrap();
+        let x_symbol = symbols.get(x_id);
+
+        assert_eq!(x_symbol.references.len(), 1);
+    }
+
+    #[test]
+    fn function_call_tracks_reference() {
+        let code = r#"
+function foo() {}
+foo();
+"#;
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
+
+        let global = tree.root().unwrap();
+        let foo_id = symbols.lookup("foo", global, &tree).unwrap();
+        let foo_symbol = symbols.get(foo_id);
+
+        assert_eq!(foo_symbol.references.len(), 1);
+    }
+
+    #[test]
+    fn parameter_reference_tracked() {
+        let code = r#"
+function add(a, b) {
+    return a + b;
+}
+"#;
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
+
+        let global = tree.root().unwrap();
+        let func_scope = tree.get(global).children[0];
+
+        let a_id = symbols.lookup("a", func_scope, &tree).unwrap();
+        let b_id = symbols.lookup("b", func_scope, &tree).unwrap();
+
+        assert_eq!(symbols.get(a_id).references.len(), 1);
+        assert_eq!(symbols.get(b_id).references.len(), 1);
+    }
+
+    #[test]
+    fn shadowed_variable_reference_correct() {
+        let code = r#"
+const x = 1;
+{
+    const x = 2;
+    console.log(x);
+}
+console.log(x);
+"#;
+        let SemanticModel {
+            scope_tree: tree,
+            symbol_table: symbols,
+            ..
+        } = build_from_source(code);
+
+        let global = tree.root().unwrap();
+        let block_scope = tree.get(global).children[0];
+
+        let outer_x = symbols
+            .symbols_in_scope(global)
+            .find(|s| s.name == "x")
+            .unwrap();
+        let inner_x = symbols
+            .symbols_in_scope(block_scope)
+            .find(|s| s.name == "x")
+            .unwrap();
+
+        assert_eq!(outer_x.references.len(), 1);
+        assert_eq!(inner_x.references.len(), 1);
     }
 }

@@ -8,5 +8,7 @@ pub mod symbols;
 pub mod visitor;
 
 pub use scope::{AncestorIter, Scope, ScopeId, ScopeKind, ScopeTree};
-pub use symbols::{DeclarationKind, Symbol, SymbolId, SymbolKind, SymbolTable};
-pub use visitor::ScopeBuilder;
+pub use symbols::{
+    DeclarationKind, Symbol, SymbolId, SymbolKind, SymbolTable, UnresolvedReference,
+};
+pub use visitor::{ScopeBuilder, SemanticModel};
