@@ -2,10 +2,12 @@
 
 pub mod command_injection;
 pub mod eval_injection;
+pub mod hardcoded_secrets;
 pub mod sql_injection;
 pub mod xss;
 
 pub use command_injection::CommandInjection;
 pub use eval_injection::EvalInjection;
+pub use hardcoded_secrets::HardcodedSecrets;
 pub use sql_injection::SqlInjection;
 pub use xss::Xss;
