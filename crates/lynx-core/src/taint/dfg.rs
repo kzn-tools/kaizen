@@ -27,6 +27,9 @@ pub enum DfgNodeKind {
     Call {
         callee_name: String,
     },
+    NewExpr {
+        callee_name: String,
+    },
     PropertyAccess {
         object: DfgNodeId,
         property: String,
@@ -696,15 +699,31 @@ impl<'a> DfgBuilder<'a> {
     }
 
     fn visit_new_expr(&mut self, new_expr: &NewExpr) -> Option<DfgNodeId> {
-        self.visit_expr(&new_expr.callee);
+        let callee_name = match new_expr.callee.as_ref() {
+            Expr::Ident(ident) => ident.sym.to_string(),
+            Expr::Member(member) => {
+                if let MemberProp::Ident(prop) = &member.prop {
+                    prop.sym.to_string()
+                } else {
+                    "unknown".to_string()
+                }
+            }
+            _ => "unknown".to_string(),
+        };
+
+        let new_node = self
+            .graph
+            .create_node(DfgNodeKind::NewExpr { callee_name }, new_expr.span);
 
         if let Some(args) = &new_expr.args {
             for arg in args {
-                self.visit_expr(&arg.expr);
+                if let Some(arg_node) = self.visit_expr(&arg.expr) {
+                    self.graph.add_edge(arg_node, new_node);
+                }
             }
         }
 
-        Some(self.graph.create_node(DfgNodeKind::Unknown, new_expr.span))
+        Some(new_node)
     }
 
     fn visit_cond_expr(&mut self, cond: &CondExpr) -> Option<DfgNodeId> {

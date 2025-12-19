@@ -310,6 +310,30 @@ impl<'a> TaintPropagator<'a> {
                         }
                     }
                 }
+                DfgNodeKind::NewExpr { callee_name } => {
+                    if let Some(sink_match) = self.check_new_expr_sink(callee_name) {
+                        for &from_id in &node.flows_from {
+                            if let Some(taint) = self.state.get_taint(from_id) {
+                                for &category in &taint.categories {
+                                    for &source_span in &taint.source_spans {
+                                        let path = self.build_path(from_id, node.id);
+                                        findings.push(TaintFinding {
+                                            source_span,
+                                            sink_span: node.span,
+                                            source_category: category,
+                                            sink_category: sink_match.pattern.category,
+                                            sink_description: sink_match
+                                                .pattern
+                                                .description
+                                                .clone(),
+                                            path,
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 DfgNodeKind::PropertyAssignment { object, property } => {
                     if let Some(sink_match) = self.check_property_assignment_sink(*object, property)
                     {
@@ -384,6 +408,11 @@ impl<'a> TaintPropagator<'a> {
         }
 
         None
+    }
+
+    fn check_new_expr_sink(&self, callee_name: &str) -> Option<TaintSinkMatch> {
+        self.sinks_registry
+            .is_taint_sink(&[callee_name.to_string()], None)
     }
 
     fn check_property_assignment_sink(
