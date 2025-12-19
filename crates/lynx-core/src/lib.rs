@@ -36,7 +36,7 @@ mod tests {
     fn semantic_module_accessible() {
         let _ = crate::semantic::ScopeTree::new();
         let _ = crate::semantic::ScopeKind::Global;
-        let _ = crate::semantic::cfg::ControlFlowGraph;
+        let _ = crate::semantic::cfg::ControlFlowGraph::new();
     }
 
     #[test]

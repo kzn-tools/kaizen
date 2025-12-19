@@ -8,6 +8,7 @@ pub mod symbols;
 pub mod types;
 pub mod visitor;
 
+pub use cfg::{BasicBlock, BasicBlockId, BasicBlockKind, ControlFlowGraph};
 pub use scope::{AncestorIter, Scope, ScopeId, ScopeKind, ScopeTree};
 pub use symbols::{
     DeclarationKind, Symbol, SymbolId, SymbolKind, SymbolTable, UnresolvedReference,
