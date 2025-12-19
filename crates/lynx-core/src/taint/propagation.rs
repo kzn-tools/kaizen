@@ -285,26 +285,57 @@ impl<'a> TaintPropagator<'a> {
         let mut findings = Vec::new();
 
         for node in self.dfg.nodes() {
-            if let DfgNodeKind::Call { callee_name } = &node.kind {
-                if let Some(sink_match) = self.check_sink_call(node, callee_name) {
-                    for &from_id in &node.flows_from {
-                        if let Some(taint) = self.state.get_taint(from_id) {
-                            for &category in &taint.categories {
-                                for &source_span in &taint.source_spans {
-                                    let path = self.build_path(from_id, node.id);
-                                    findings.push(TaintFinding {
-                                        source_span,
-                                        sink_span: node.span,
-                                        source_category: category,
-                                        sink_category: sink_match.pattern.category,
-                                        sink_description: sink_match.pattern.description.clone(),
-                                        path,
-                                    });
+            match &node.kind {
+                DfgNodeKind::Call { callee_name } => {
+                    if let Some(sink_match) = self.check_sink_call(node, callee_name) {
+                        for &from_id in &node.flows_from {
+                            if let Some(taint) = self.state.get_taint(from_id) {
+                                for &category in &taint.categories {
+                                    for &source_span in &taint.source_spans {
+                                        let path = self.build_path(from_id, node.id);
+                                        findings.push(TaintFinding {
+                                            source_span,
+                                            sink_span: node.span,
+                                            source_category: category,
+                                            sink_category: sink_match.pattern.category,
+                                            sink_description: sink_match
+                                                .pattern
+                                                .description
+                                                .clone(),
+                                            path,
+                                        });
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                DfgNodeKind::PropertyAssignment { object, property } => {
+                    if let Some(sink_match) = self.check_property_assignment_sink(*object, property)
+                    {
+                        for &from_id in &node.flows_from {
+                            if let Some(taint) = self.state.get_taint(from_id) {
+                                for &category in &taint.categories {
+                                    for &source_span in &taint.source_spans {
+                                        let path = self.build_path(from_id, node.id);
+                                        findings.push(TaintFinding {
+                                            source_span,
+                                            sink_span: node.span,
+                                            source_category: category,
+                                            sink_category: sink_match.pattern.category,
+                                            sink_description: sink_match
+                                                .pattern
+                                                .description
+                                                .clone(),
+                                            path,
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
             }
         }
 
@@ -321,24 +352,55 @@ impl<'a> TaintPropagator<'a> {
 
         for &from_id in &node.flows_from {
             let from_node = self.dfg.get(from_id);
-            if let DfgNodeKind::Variable { name, .. } = &from_node.kind {
-                if let Some(result) = self
-                    .sinks_registry
-                    .is_taint_sink(std::slice::from_ref(name), Some(callee_name))
-                {
-                    return Some(result);
+            match &from_node.kind {
+                DfgNodeKind::Variable { name, .. } => {
+                    if let Some(result) = self
+                        .sinks_registry
+                        .is_taint_sink(std::slice::from_ref(name), Some(callee_name))
+                    {
+                        return Some(result);
+                    }
                 }
-            } else if let DfgNodeKind::PropertyAccess { property, .. } = &from_node.kind {
-                if let Some(result) = self
-                    .sinks_registry
-                    .is_taint_sink(std::slice::from_ref(property), Some(callee_name))
-                {
-                    return Some(result);
+                DfgNodeKind::PropertyAccess { property, .. } => {
+                    if let Some(result) = self
+                        .sinks_registry
+                        .is_taint_sink(std::slice::from_ref(property), Some(callee_name))
+                    {
+                        return Some(result);
+                    }
                 }
+                DfgNodeKind::Call {
+                    callee_name: obj_callee,
+                } => {
+                    if let Some(result) = self
+                        .sinks_registry
+                        .is_taint_sink(std::slice::from_ref(obj_callee), Some(callee_name))
+                    {
+                        return Some(result);
+                    }
+                }
+                _ => {}
             }
         }
 
         None
+    }
+
+    fn check_property_assignment_sink(
+        &self,
+        object: DfgNodeId,
+        property: &str,
+    ) -> Option<TaintSinkMatch> {
+        let object_node = self.dfg.get(object);
+
+        let object_name = match &object_node.kind {
+            DfgNodeKind::Variable { name, .. } => name.clone(),
+            DfgNodeKind::PropertyAccess { property, .. } => property.clone(),
+            _ => return None,
+        };
+
+        self.sinks_registry
+            .is_taint_sink(&[object_name], Some(property))
     }
 
     fn build_path(&self, source: DfgNodeId, sink: DfgNodeId) -> Vec<DfgNodeId> {
