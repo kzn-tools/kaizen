@@ -7,7 +7,7 @@ use crate::diagnostic::Diagnostic;
 use crate::parser::ParsedFile;
 use crate::rules::RuleRegistry;
 use crate::rules::quality::{
-    Eqeqeq, FloatingPromises, MaxComplexity, NoConsole, NoEval, NoUnusedVars, NoVar,
+    Eqeqeq, FloatingPromises, MaxComplexity, MaxDepth, NoConsole, NoEval, NoUnusedVars, NoVar,
     PreferNullishCoalescing, PreferOptionalChaining, PreferUsing,
 };
 
@@ -71,6 +71,7 @@ fn create_default_registry() -> RuleRegistry {
     let mut registry = RuleRegistry::new();
 
     registry.register(Box::new(MaxComplexity::new()));
+    registry.register(Box::new(MaxDepth::new()));
     registry.register(Box::new(NoVar::new()));
     registry.register(Box::new(Eqeqeq::new()));
     registry.register(Box::new(NoConsole::new()));
