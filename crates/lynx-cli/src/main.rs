@@ -43,9 +43,32 @@ mod tests {
         let cli = Cli::try_parse_from(["lynx", "check", "./src"]).unwrap();
         match cli.command {
             Commands::Check(args) => {
-                assert_eq!(args.path.to_str().unwrap(), "./src");
+                assert_eq!(args.path.unwrap().to_str().unwrap(), "./src");
             }
             _ => panic!("Expected Check command"),
+        }
+    }
+
+    #[test]
+    fn cli_parses_check_staged() {
+        let cli = Cli::try_parse_from(["lynx", "check", "--staged"]).unwrap();
+        match cli.command {
+            Commands::Check(args) => {
+                assert!(args.staged);
+                assert!(args.path.is_none());
+            }
+            _ => panic!("Expected Check command"),
+        }
+    }
+
+    #[test]
+    fn cli_parses_init_with_hook() {
+        let cli = Cli::try_parse_from(["lynx", "init", "--hook", "pre-commit"]).unwrap();
+        match cli.command {
+            Commands::Init(args) => {
+                assert!(args.hook.is_some());
+            }
+            _ => panic!("Expected Init command"),
         }
     }
 

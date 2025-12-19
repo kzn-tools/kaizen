@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::process;
+use std::process::{self, Command};
 use walkdir::WalkDir;
 
 const SUPPORTED_EXTENSIONS: &[&str] = &["js", "jsx", "ts", "tsx", "mjs", "cjs", "mts", "cts"];
@@ -24,8 +24,12 @@ const SUPPORTED_EXTENSIONS: &[&str] = &["js", "jsx", "ts", "tsx", "mjs", "cjs", 
 #[derive(Args, Debug)]
 pub struct CheckArgs {
     /// Path to file or directory to analyze
-    #[arg(value_name = "PATH")]
-    pub path: PathBuf,
+    #[arg(value_name = "PATH", required_unless_present = "staged")]
+    pub path: Option<PathBuf>,
+
+    /// Analyze only git staged files
+    #[arg(long)]
+    pub staged: bool,
 
     /// Output format for diagnostics (pretty, text, json, ndjson, sarif)
     #[arg(short, long, default_value = "pretty")]
@@ -52,16 +56,25 @@ impl CheckArgs {
     pub fn run(&self) -> Result<()> {
         self.configure_colors();
 
-        let config_result = load_config_or_default_with_warnings(&self.path);
+        let config_path = self.path.clone().unwrap_or_else(|| PathBuf::from("."));
+        let config_result = load_config_or_default_with_warnings(&config_path);
         for warning in &config_result.warnings {
             eprintln!("{} {}", "warning:".yellow().bold(), warning);
         }
         let config = config_result.config;
 
-        let files = discover_files(&self.path)?;
+        let files = if self.staged {
+            get_staged_files()?
+        } else {
+            discover_files(&config_path)?
+        };
 
         if files.is_empty() {
-            println!("No JavaScript/TypeScript files found.");
+            if self.staged {
+                println!("No staged JavaScript/TypeScript files found.");
+            } else {
+                println!("No JavaScript/TypeScript files found.");
+            }
             return Ok(());
         }
 
@@ -101,7 +114,11 @@ impl CheckArgs {
             .count();
 
         let total_files = files.len();
-        let analyzed_path = self.path.to_string_lossy().to_string();
+        let analyzed_path = if self.staged {
+            "(staged files)".to_string()
+        } else {
+            config_path.to_string_lossy().to_string()
+        };
 
         match self.format.as_str() {
             "json" => self.output_json(&all_diagnostics, &engine, total_files, &analyzed_path),
@@ -234,6 +251,28 @@ impl CheckArgs {
         let formatter = SarifFormatter::with_registry(engine.registry());
         println!("{}", formatter.format(diagnostics));
     }
+}
+
+fn get_staged_files() -> Result<Vec<PathBuf>> {
+    let output = Command::new("git")
+        .args(["diff", "--cached", "--name-only", "--diff-filter=ACMR"])
+        .output()
+        .map_err(|e| anyhow::anyhow!("Failed to run git: {}. Is this a git repository?", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("Git command failed: {}", stderr.trim());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let files: Vec<PathBuf> = stdout
+        .lines()
+        .map(PathBuf::from)
+        .filter(|p| is_supported_file(p))
+        .filter(|p| p.exists())
+        .collect();
+
+    Ok(files)
 }
 
 fn discover_files(path: &Path) -> Result<Vec<PathBuf>> {
@@ -401,7 +440,8 @@ mod tests {
     #[test]
     fn check_args_parse_severity_valid() {
         let args = CheckArgs {
-            path: PathBuf::from("."),
+            path: Some(PathBuf::from(".")),
+            staged: false,
             format: "pretty".to_string(),
             fail_on_warnings: false,
             severity: Some("error".to_string()),
@@ -415,7 +455,8 @@ mod tests {
     #[test]
     fn check_args_parse_severity_invalid() {
         let args = CheckArgs {
-            path: PathBuf::from("."),
+            path: Some(PathBuf::from(".")),
+            staged: false,
             format: "pretty".to_string(),
             fail_on_warnings: false,
             severity: Some("invalid".to_string()),
@@ -429,7 +470,8 @@ mod tests {
     #[test]
     fn check_args_parse_confidence_valid() {
         let args = CheckArgs {
-            path: PathBuf::from("."),
+            path: Some(PathBuf::from(".")),
+            staged: false,
             format: "pretty".to_string(),
             fail_on_warnings: false,
             severity: None,
@@ -443,7 +485,8 @@ mod tests {
     #[test]
     fn check_args_parse_confidence_invalid() {
         let args = CheckArgs {
-            path: PathBuf::from("."),
+            path: Some(PathBuf::from(".")),
+            staged: false,
             format: "pretty".to_string(),
             fail_on_warnings: false,
             severity: None,
@@ -462,7 +505,8 @@ mod tests {
         writeln!(file, "var x = 1;").unwrap();
 
         let args = CheckArgs {
-            path: file_path,
+            path: Some(file_path),
+            staged: false,
             format: "json".to_string(),
             fail_on_warnings: false,
             severity: None,
