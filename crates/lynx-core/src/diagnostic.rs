@@ -5,6 +5,60 @@
 use crate::rules::Severity;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FixKind {
+    ReplaceWith { new_text: String },
+    InsertBefore { text: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Fix {
+    pub title: String,
+    pub kind: FixKind,
+    pub line: usize,
+    pub column: usize,
+    pub end_line: usize,
+    pub end_column: usize,
+}
+
+impl Fix {
+    pub fn replace(
+        title: impl Into<String>,
+        new_text: impl Into<String>,
+        line: usize,
+        column: usize,
+        end_line: usize,
+        end_column: usize,
+    ) -> Self {
+        Self {
+            title: title.into(),
+            kind: FixKind::ReplaceWith {
+                new_text: new_text.into(),
+            },
+            line,
+            column,
+            end_line,
+            end_column,
+        }
+    }
+
+    pub fn insert_before(
+        title: impl Into<String>,
+        text: impl Into<String>,
+        line: usize,
+        column: usize,
+    ) -> Self {
+        Self {
+            title: title.into(),
+            kind: FixKind::InsertBefore { text: text.into() },
+            line,
+            column,
+            end_line: line,
+            end_column: column,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Diagnostic {
     pub rule_id: String,
     pub severity: Severity,
@@ -15,6 +69,7 @@ pub struct Diagnostic {
     pub end_line: usize,
     pub end_column: usize,
     pub suggestion: Option<String>,
+    pub fixes: Vec<Fix>,
 }
 
 impl Diagnostic {
@@ -36,6 +91,7 @@ impl Diagnostic {
             end_line: line,
             end_column: column,
             suggestion: None,
+            fixes: Vec::new(),
         }
     }
 
@@ -47,6 +103,16 @@ impl Diagnostic {
 
     pub fn with_suggestion(mut self, suggestion: impl Into<String>) -> Self {
         self.suggestion = Some(suggestion.into());
+        self
+    }
+
+    pub fn with_fix(mut self, fix: Fix) -> Self {
+        self.fixes.push(fix);
+        self
+    }
+
+    pub fn with_fixes(mut self, fixes: Vec<Fix>) -> Self {
+        self.fixes = fixes;
         self
     }
 }

@@ -1,8 +1,11 @@
 //! Analysis engine for code analysis and diagnostic generation
 
+use lynx_core::diagnostic::Diagnostic as CoreDiagnostic;
 use lynx_core::parser::ParsedFile;
 use lynx_core::rules::RuleRegistry;
-use lynx_core::rules::quality::{Eqeqeq, NoConsole, NoEval, NoUnusedVars, NoVar};
+use lynx_core::rules::quality::{
+    Eqeqeq, FloatingPromises, NoConsole, NoEval, NoUnusedVars, NoVar, PreferUsing,
+};
 use tower_lsp::lsp_types::Diagnostic;
 
 use crate::diagnostics::{convert_diagnostics, convert_parse_errors};
@@ -18,15 +21,21 @@ impl AnalysisEngine {
         }
     }
 
+    #[allow(dead_code)]
     pub fn analyze(&self, file: &ParsedFile) -> Vec<Diagnostic> {
-        let mut diagnostics = Vec::new();
+        let (lsp_diags, _) = self.analyze_with_core(file);
+        lsp_diags
+    }
 
-        diagnostics.extend(convert_parse_errors(file.errors()));
+    pub fn analyze_with_core(&self, file: &ParsedFile) -> (Vec<Diagnostic>, Vec<CoreDiagnostic>) {
+        let mut lsp_diagnostics = Vec::new();
+
+        lsp_diagnostics.extend(convert_parse_errors(file.errors()));
 
         let rule_diagnostics = self.registry.run_all(file);
-        diagnostics.extend(convert_diagnostics(&rule_diagnostics));
+        lsp_diagnostics.extend(convert_diagnostics(&rule_diagnostics));
 
-        diagnostics
+        (lsp_diagnostics, rule_diagnostics)
     }
 }
 
@@ -44,6 +53,8 @@ fn create_default_registry() -> RuleRegistry {
     registry.register(Box::new(NoConsole::new()));
     registry.register(Box::new(NoEval::new()));
     registry.register(Box::new(NoUnusedVars::new()));
+    registry.register(Box::new(PreferUsing::new()));
+    registry.register(Box::new(FloatingPromises::new()));
 
     registry
 }

@@ -1,15 +1,20 @@
 use std::sync::Arc;
 
+use dashmap::DashMap;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
-    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    InitializeParams, InitializeResult, InitializedParams, MessageType, Url,
+    CodeActionOrCommand, CodeActionParams, CodeActionResponse, DidChangeTextDocumentParams,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams, InitializeResult,
+    InitializedParams, MessageType, Url,
 };
 use tower_lsp::{Client, LanguageServer};
 use tracing::{debug, info, instrument};
 
+use lynx_core::diagnostic::Diagnostic as CoreDiagnostic;
+
 use crate::analysis::AnalysisEngine;
 use crate::capabilities::server_capabilities;
+use crate::code_actions::generate_code_actions;
 use crate::debouncer::Debouncer;
 use crate::document::DocumentStore;
 
@@ -18,6 +23,7 @@ pub struct LynxLanguageServer {
     documents: Arc<DocumentStore>,
     analysis_engine: Arc<AnalysisEngine>,
     debouncer: Arc<Debouncer>,
+    core_diagnostics: Arc<DashMap<Url, Vec<CoreDiagnostic>>>,
 }
 
 impl LynxLanguageServer {
@@ -27,18 +33,21 @@ impl LynxLanguageServer {
             documents: Arc::new(DocumentStore::new()),
             analysis_engine: Arc::new(AnalysisEngine::new()),
             debouncer: Arc::new(Debouncer::new()),
+            core_diagnostics: Arc::new(DashMap::new()),
         }
     }
 
     async fn analyze_and_publish(&self, uri: &Url) {
-        let diagnostics = self
+        let (lsp_diagnostics, core_diags) = self
             .documents
             .get(uri)
-            .map(|doc| self.analysis_engine.analyze(&doc))
+            .map(|doc| self.analysis_engine.analyze_with_core(&doc))
             .unwrap_or_default();
 
+        self.core_diagnostics.insert(uri.clone(), core_diags);
+
         self.client
-            .publish_diagnostics(uri.clone(), diagnostics, None)
+            .publish_diagnostics(uri.clone(), lsp_diagnostics, None)
             .await;
     }
 
@@ -47,14 +56,17 @@ impl LynxLanguageServer {
         let client = self.client.clone();
         let documents = self.documents.clone();
         let analysis_engine = self.analysis_engine.clone();
+        let core_diagnostics = self.core_diagnostics.clone();
 
         self.debouncer.schedule(uri.clone(), move || async move {
-            let diagnostics = documents
+            let (lsp_diagnostics, core_diags) = documents
                 .get(&uri)
-                .map(|doc| analysis_engine.analyze(&doc))
+                .map(|doc| analysis_engine.analyze_with_core(&doc))
                 .unwrap_or_default();
 
-            client.publish_diagnostics(uri, diagnostics, None).await;
+            core_diagnostics.insert(uri.clone(), core_diags);
+
+            client.publish_diagnostics(uri, lsp_diagnostics, None).await;
         });
     }
 }
@@ -109,7 +121,26 @@ impl LanguageServer for LynxLanguageServer {
         debug!(uri = %uri, "closing document");
         self.debouncer.cancel(&uri);
         self.documents.close(&uri);
+        self.core_diagnostics.remove(&uri);
         self.client.publish_diagnostics(uri, vec![], None).await;
+    }
+
+    #[instrument(skip(self, params), fields(uri = %params.text_document.uri), name = "lsp/textDocument/codeAction")]
+    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+        let uri = &params.text_document.uri;
+        let range = &params.range;
+
+        let actions: Vec<CodeActionOrCommand> = self
+            .core_diagnostics
+            .get(uri)
+            .map(|diags| generate_code_actions(uri, &diags, range))
+            .unwrap_or_default();
+
+        if actions.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(actions))
+        }
     }
 }
 

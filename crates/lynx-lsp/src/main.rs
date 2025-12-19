@@ -1,6 +1,7 @@
 mod analysis;
 mod capabilities;
 mod cli;
+mod code_actions;
 mod debouncer;
 mod diagnostics;
 mod document;
