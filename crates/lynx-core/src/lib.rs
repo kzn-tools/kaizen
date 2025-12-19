@@ -41,7 +41,7 @@ mod tests {
 
     #[test]
     fn taint_module_accessible() {
-        let _ = crate::taint::TaintAnalyzer;
+        let _ = crate::taint::TaintAnalyzer::new();
     }
 
     #[test]

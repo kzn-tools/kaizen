@@ -126,6 +126,7 @@ pub struct TaintSinkMatch {
     pub matched_method: Option<String>,
 }
 
+#[derive(Debug)]
 pub struct TaintSinksRegistry {
     patterns: Vec<TaintSinkPattern>,
     callee_index: HashMap<String, Vec<usize>>,

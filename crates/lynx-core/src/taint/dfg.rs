@@ -448,6 +448,17 @@ impl<'a> DfgBuilder<'a> {
                 }
                 None
             })
+            .or_else(|| {
+                let node_id = self.graph.create_node(
+                    DfgNodeKind::Variable {
+                        name: name.clone(),
+                        scope_id: None,
+                    },
+                    ident.span,
+                );
+                self.graph.var_to_node.insert((None, name), node_id);
+                Some(node_id)
+            })
     }
 
     fn visit_call_expr(&mut self, call: &CallExpr) -> Option<DfgNodeId> {

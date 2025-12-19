@@ -128,6 +128,7 @@ pub struct TaintSourceMatch {
     pub matched_property: Option<String>,
 }
 
+#[derive(Debug)]
 pub struct TaintSourcesRegistry {
     patterns: Vec<TaintSourcePattern>,
     object_index: HashMap<String, Vec<usize>>,
