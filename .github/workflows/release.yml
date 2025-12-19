@@ -145,6 +145,9 @@ jobs:
     name: Publish npm packages
     needs: [build, release]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -193,7 +196,7 @@ jobs:
           for platform in linux-x64 linux-arm64 darwin-x64 darwin-arm64 win32-x64; do
             echo "Publishing kzn-cli-$platform..."
             cd npm/$platform
-            npm publish --access public || echo "Package may already exist"
+            npm publish --provenance --access public || echo "Package may already exist"
             cd ../..
           done
 
@@ -202,4 +205,4 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           cd npm/kaizen-cli
-          npm publish || echo "Package may already exist"
+          npm publish --provenance --access public || echo "Package may already exist"
