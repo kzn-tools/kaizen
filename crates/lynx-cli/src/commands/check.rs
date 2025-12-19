@@ -2,6 +2,7 @@
 
 use crate::output::json::JsonFormatter;
 use crate::output::pretty::PrettyFormatter;
+use crate::output::sarif::SarifFormatter;
 use anyhow::Result;
 use clap::Args;
 use colored::Colorize;
@@ -26,7 +27,7 @@ pub struct CheckArgs {
     #[arg(value_name = "PATH")]
     pub path: PathBuf,
 
-    /// Output format for diagnostics (pretty, text, json, ndjson)
+    /// Output format for diagnostics (pretty, text, json, ndjson, sarif)
     #[arg(short, long, default_value = "pretty")]
     pub format: String,
 
@@ -107,6 +108,7 @@ impl CheckArgs {
             "ndjson" => {
                 self.output_ndjson(&all_diagnostics, &engine, total_files, &analyzed_path)?
             }
+            "sarif" => self.output_sarif(&all_diagnostics, &engine),
             "text" => self.output_text(&all_diagnostics),
             _ => self.output_pretty(&all_diagnostics, &sources),
         }
@@ -226,6 +228,11 @@ impl CheckArgs {
     fn output_pretty(&self, diagnostics: &[Diagnostic], sources: &HashMap<String, String>) {
         let formatter = PrettyFormatter::with_sources(sources.clone());
         print!("{}", formatter.format(diagnostics));
+    }
+
+    fn output_sarif(&self, diagnostics: &[Diagnostic], engine: &AnalysisEngine) {
+        let formatter = SarifFormatter::with_registry(engine.registry());
+        println!("{}", formatter.format(diagnostics));
     }
 }
 
