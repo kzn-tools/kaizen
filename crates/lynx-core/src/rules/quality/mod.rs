@@ -2,6 +2,7 @@
 
 pub mod eqeqeq;
 pub mod floating_promises;
+pub mod max_complexity;
 pub mod no_console;
 pub mod no_eval;
 pub mod no_unused_vars;
@@ -12,6 +13,7 @@ pub mod prefer_using;
 
 pub use eqeqeq::Eqeqeq;
 pub use floating_promises::FloatingPromises;
+pub use max_complexity::MaxComplexity;
 pub use no_console::NoConsole;
 pub use no_eval::NoEval;
 pub use no_unused_vars::NoUnusedVars;

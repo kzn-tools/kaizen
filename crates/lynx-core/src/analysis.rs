@@ -7,8 +7,8 @@ use crate::diagnostic::Diagnostic;
 use crate::parser::ParsedFile;
 use crate::rules::RuleRegistry;
 use crate::rules::quality::{
-    Eqeqeq, FloatingPromises, NoConsole, NoEval, NoUnusedVars, NoVar, PreferNullishCoalescing,
-    PreferOptionalChaining, PreferUsing,
+    Eqeqeq, FloatingPromises, MaxComplexity, NoConsole, NoEval, NoUnusedVars, NoVar,
+    PreferNullishCoalescing, PreferOptionalChaining, PreferUsing,
 };
 
 pub struct AnalysisEngine {
@@ -70,6 +70,7 @@ impl Default for AnalysisEngine {
 fn create_default_registry() -> RuleRegistry {
     let mut registry = RuleRegistry::new();
 
+    registry.register(Box::new(MaxComplexity::new()));
     registry.register(Box::new(NoVar::new()));
     registry.register(Box::new(Eqeqeq::new()));
     registry.register(Box::new(NoConsole::new()));
