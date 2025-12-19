@@ -1,6 +1,6 @@
 use tower_lsp::lsp_types::{
-    ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-    TextDocumentSyncSaveOptions,
+    CodeActionProviderCapability, ServerCapabilities, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextDocumentSyncOptions, TextDocumentSyncSaveOptions,
 };
 
 pub fn server_capabilities() -> ServerCapabilities {
@@ -13,8 +13,7 @@ pub fn server_capabilities() -> ServerCapabilities {
                 ..Default::default()
             },
         )),
-        // We use push-based diagnostics via publishDiagnostics notifications
-        // not pull-based via textDocument/diagnostic requests
+        code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
         ..Default::default()
     }
 }

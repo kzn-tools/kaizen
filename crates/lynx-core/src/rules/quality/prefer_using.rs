@@ -10,7 +10,7 @@ use swc_ecma_ast::{
 };
 
 use crate::declare_rule;
-use crate::diagnostic::Diagnostic;
+use crate::diagnostic::{Diagnostic, Fix};
 use crate::parser::ParsedFile;
 use crate::rules::{Rule, RuleMetadata, Severity};
 use crate::semantic::types::DisposableTypesRegistry;
@@ -203,6 +203,12 @@ impl<'a> PreferUsingVisitor<'a> {
             return;
         }
 
+        let keyword_len = match var_decl.kind {
+            VarDeclKind::Const => 5,
+            VarDeclKind::Let => 3,
+            VarDeclKind::Var => return,
+        };
+
         for declarator in &var_decl.decls {
             let var_name = match &declarator.name {
                 Pat::Ident(ident) => ident.sym.to_string(),
@@ -249,13 +255,24 @@ impl<'a> PreferUsingVisitor<'a> {
                 );
 
                 let (line, column) = self.ctx.span_to_location(declarator.span);
+                let (keyword_line, keyword_column) = self.ctx.span_to_location(var_decl.span);
+
+                let fix = Fix::replace(
+                    format!("Replace with '{}'", using_keyword),
+                    using_keyword.to_string(),
+                    keyword_line,
+                    keyword_column,
+                    keyword_line,
+                    keyword_column + keyword_len - 1,
+                );
 
                 let diagnostic =
                     Diagnostic::new("Q020", severity, message, &self.file_path, line, column)
                         .with_suggestion(format!(
                             "Replace 'const {}' or 'let {}' with '{} {}'",
                             var_name, var_name, using_keyword, var_name
-                        ));
+                        ))
+                        .with_fix(fix);
 
                 self.diagnostics.push(diagnostic);
             }

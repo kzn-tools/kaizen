@@ -8,7 +8,7 @@ use swc_ecma_ast::{
 };
 
 use crate::declare_rule;
-use crate::diagnostic::Diagnostic;
+use crate::diagnostic::{Diagnostic, Fix};
 use crate::parser::ParsedFile;
 use crate::rules::{Rule, RuleMetadata, Severity};
 use crate::visitor::VisitorContext;
@@ -136,19 +136,16 @@ impl<'a> FloatingPromisesVisitor<'a> {
     fn check_expr_stmt(&mut self, expr_stmt: &ExprStmt) {
         let expr = &*expr_stmt.expr;
 
-        // Check if this is a void expression (intentionally ignored)
         if let Expr::Unary(unary) = expr {
             if unary.op == UnaryOp::Void {
                 return;
             }
         }
 
-        // Check if this is an await expression (properly handled)
         if matches!(expr, Expr::Await(_)) {
             return;
         }
 
-        // Check if expression is a potentially floating promise
         if let Some(call_info) = self.extract_floating_promise_info(expr) {
             let (line, column) = self.ctx.span_to_location(expr_stmt.span);
 
@@ -156,6 +153,11 @@ impl<'a> FloatingPromisesVisitor<'a> {
                 "Floating Promise: '{}' returns a Promise that is not awaited or caught",
                 call_info.name
             );
+
+            let await_fix = Fix::insert_before("Add 'await'", "await ", line, column);
+
+            let void_fix =
+                Fix::insert_before("Add 'void' (fire-and-forget)", "void ", line, column);
 
             let diagnostic = Diagnostic::new(
                 "Q021",
@@ -167,7 +169,9 @@ impl<'a> FloatingPromisesVisitor<'a> {
             )
             .with_suggestion(
                 "Add 'await' before the call, handle with '.catch()', or use 'void' if intentional",
-            );
+            )
+            .with_fix(await_fix)
+            .with_fix(void_fix);
 
             self.diagnostics.push(diagnostic);
         }
