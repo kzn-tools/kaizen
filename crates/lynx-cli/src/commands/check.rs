@@ -1,5 +1,6 @@
 //! Check command - analyzes JavaScript/TypeScript files for issues
 
+use crate::output::json::JsonFormatter;
 use crate::output::pretty::PrettyFormatter;
 use anyhow::Result;
 use clap::Args;
@@ -10,9 +11,9 @@ use lynx_core::diagnostic::Diagnostic;
 use lynx_core::parser::ParsedFile;
 use lynx_core::rules::{Confidence, Severity};
 use rayon::prelude::*;
-use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::process;
 use walkdir::WalkDir;
@@ -25,7 +26,7 @@ pub struct CheckArgs {
     #[arg(value_name = "PATH")]
     pub path: PathBuf,
 
-    /// Output format for diagnostics (pretty, text, json)
+    /// Output format for diagnostics (pretty, text, json, ndjson)
     #[arg(short, long, default_value = "pretty")]
     pub format: String,
 
@@ -44,37 +45,6 @@ pub struct CheckArgs {
     /// Disable colored output
     #[arg(long)]
     pub no_color: bool,
-}
-
-#[derive(Serialize)]
-struct JsonDiagnostic {
-    rule_id: String,
-    severity: String,
-    confidence: String,
-    message: String,
-    file: String,
-    line: usize,
-    column: usize,
-    end_line: usize,
-    end_column: usize,
-    suggestion: Option<String>,
-}
-
-impl From<&Diagnostic> for JsonDiagnostic {
-    fn from(d: &Diagnostic) -> Self {
-        Self {
-            rule_id: d.rule_id.clone(),
-            severity: format!("{:?}", d.severity).to_lowercase(),
-            confidence: format!("{:?}", d.confidence).to_lowercase(),
-            message: d.message.clone(),
-            file: d.file.clone(),
-            line: d.line,
-            column: d.column,
-            end_line: d.end_line,
-            end_column: d.end_column,
-            suggestion: d.suggestion.clone(),
-        }
-    }
 }
 
 impl CheckArgs {
@@ -129,8 +99,14 @@ impl CheckArgs {
             .filter(|d| matches!(d.severity, Severity::Warning))
             .count();
 
+        let total_files = files.len();
+        let analyzed_path = self.path.to_string_lossy().to_string();
+
         match self.format.as_str() {
-            "json" => self.output_json(&all_diagnostics)?,
+            "json" => self.output_json(&all_diagnostics, &engine, total_files, &analyzed_path),
+            "ndjson" => {
+                self.output_ndjson(&all_diagnostics, &engine, total_files, &analyzed_path)?
+            }
             "text" => self.output_text(&all_diagnostics),
             _ => self.output_pretty(&all_diagnostics, &sources),
         }
@@ -220,10 +196,30 @@ impl CheckArgs {
         }
     }
 
-    fn output_json(&self, diagnostics: &[Diagnostic]) -> Result<()> {
-        let json_diags: Vec<JsonDiagnostic> = diagnostics.iter().map(Into::into).collect();
-        let json = serde_json::to_string_pretty(&json_diags)?;
-        println!("{}", json);
+    fn output_json(
+        &self,
+        diagnostics: &[Diagnostic],
+        engine: &AnalysisEngine,
+        total_files: usize,
+        analyzed_path: &str,
+    ) {
+        let formatter = JsonFormatter::with_registry(engine.registry());
+        println!(
+            "{}",
+            formatter.format(diagnostics, total_files, analyzed_path)
+        );
+    }
+
+    fn output_ndjson(
+        &self,
+        diagnostics: &[Diagnostic],
+        engine: &AnalysisEngine,
+        total_files: usize,
+        analyzed_path: &str,
+    ) -> Result<()> {
+        let formatter = JsonFormatter::with_registry(engine.registry());
+        let mut stdout = io::stdout().lock();
+        formatter.format_ndjson(diagnostics, total_files, analyzed_path, &mut stdout)?;
         Ok(())
     }
 
