@@ -1,0 +1,83 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    name: Performance Regression Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run benchmarks
+        run: cargo bench --package lynx-core 2>&1 | tee output.txt
+
+      - name: Parse criterion output
+        run: |
+          python3 << 'PYEOF'
+          import re
+          import json
+
+          with open('output.txt', 'r') as f:
+              lines = f.readlines()
+
+          results = []
+          current_name = None
+
+          for line in lines:
+              line = line.rstrip()
+              name_match = re.match(r'^([\w/.-]+(?:/[\w/.-]+)*)\s*(?:time:|$)', line)
+              if name_match and not line.startswith(' '):
+                  current_name = name_match.group(1)
+
+              time_match = re.search(r'time:\s+\[[\d.]+\s+\S+\s+([\d.]+)\s+(\S+)\s+[\d.]+\s+\S+\]', line)
+              if time_match and current_name:
+                  value = float(time_match.group(1))
+                  unit = time_match.group(2)
+
+                  if unit == 'µs':
+                      value *= 1000
+                      unit = 'ns'
+                  elif unit == 'ms':
+                      value *= 1000000
+                      unit = 'ns'
+
+                  results.append({'name': current_name, 'unit': unit, 'value': value})
+                  current_name = None
+
+          with open('benchmark-results.json', 'w') as f:
+              json.dump(results, f, indent=2)
+
+          print(f'Parsed {len(results)} benchmark results')
+          for r in results:
+              print(f"  {r['name']}: {r['value']:.2f} {r['unit']}")
+          PYEOF
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Lynx Benchmarks
+          tool: "customSmallerIsBetter"
+          output-file-path: benchmark-results.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          alert-threshold: "150%"
+          comment-on-alert: true
+          fail-on-alert: false
+          alert-comment-cc-users: "@mpiton"
+          fail-threshold: "200%"
