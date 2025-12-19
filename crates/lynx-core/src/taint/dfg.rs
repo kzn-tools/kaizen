@@ -475,9 +475,19 @@ impl<'a> DfgBuilder<'a> {
             call.span,
         );
 
+        // Connect arguments to call node
         for arg in &call.args {
             if let Some(arg_node) = self.visit_expr(&arg.expr) {
                 self.graph.add_edge(arg_node, call_node);
+            }
+        }
+
+        // Connect callee object to call node for method calls (e.g., db.query())
+        if let Callee::Expr(callee_expr) = &call.callee {
+            if let Expr::Member(member) = callee_expr.as_ref() {
+                if let Some(obj_node) = self.visit_expr(&member.obj) {
+                    self.graph.add_edge(obj_node, call_node);
+                }
             }
         }
 

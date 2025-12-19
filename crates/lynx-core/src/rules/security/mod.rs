@@ -1,4 +1,5 @@
 //! Security rules for vulnerability detection
 
-#[derive(Debug, Default)]
-pub struct SecurityRule;
+pub mod sql_injection;
+
+pub use sql_injection::SqlInjection;

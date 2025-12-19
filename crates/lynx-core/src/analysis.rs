@@ -11,6 +11,7 @@ use crate::rules::quality::{
     NoUnusedImports, NoUnusedVars, NoVar, PreferConst, PreferNullishCoalescing,
     PreferOptionalChaining, PreferUsing,
 };
+use crate::rules::security::SqlInjection;
 
 pub struct AnalysisEngine {
     registry: RuleRegistry,
@@ -71,6 +72,7 @@ impl Default for AnalysisEngine {
 fn create_default_registry() -> RuleRegistry {
     let mut registry = RuleRegistry::new();
 
+    // Quality rules
     registry.register(Box::new(MaxComplexity::new()));
     registry.register(Box::new(MaxDepth::new()));
     registry.register(Box::new(NoUnreachable::new()));
@@ -85,6 +87,9 @@ fn create_default_registry() -> RuleRegistry {
     registry.register(Box::new(PreferOptionalChaining::new()));
     registry.register(Box::new(PreferNullishCoalescing::new()));
     registry.register(Box::new(PreferConst::new()));
+
+    // Security rules
+    registry.register(Box::new(SqlInjection::new()));
 
     registry
 }
