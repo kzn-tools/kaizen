@@ -18,6 +18,24 @@ pub enum Severity {
     Hint,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum Confidence {
+    #[default]
+    High,
+    Medium,
+    Low,
+}
+
+impl Confidence {
+    pub fn level(&self) -> u8 {
+        match self {
+            Confidence::High => 3,
+            Confidence::Medium => 2,
+            Confidence::Low => 1,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RuleCategory {
     Quality,
@@ -352,6 +370,24 @@ mod tests {
         let _warning = Severity::Warning;
         let _info = Severity::Info;
         let _hint = Severity::Hint;
+    }
+
+    #[test]
+    fn confidence_values_exist() {
+        let _high = Confidence::High;
+        let _medium = Confidence::Medium;
+        let _low = Confidence::Low;
+    }
+
+    #[test]
+    fn confidence_default_is_high() {
+        assert_eq!(Confidence::default(), Confidence::High);
+    }
+
+    #[test]
+    fn confidence_level_ordering() {
+        assert!(Confidence::High.level() > Confidence::Medium.level());
+        assert!(Confidence::Medium.level() > Confidence::Low.level());
     }
 
     #[test]

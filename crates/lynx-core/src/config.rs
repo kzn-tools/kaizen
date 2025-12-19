@@ -6,12 +6,19 @@ use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-use crate::rules::Severity;
+use crate::rules::{Confidence, Severity};
 
 pub const CONFIG_FILENAME: &str = "lynx.toml";
 
 const KNOWN_TOP_LEVEL_KEYS: &[&str] = &["include", "exclude", "rules"];
-const KNOWN_RULES_KEYS: &[&str] = &["enabled", "disabled", "severity", "quality", "security"];
+const KNOWN_RULES_KEYS: &[&str] = &[
+    "enabled",
+    "disabled",
+    "severity",
+    "quality",
+    "security",
+    "min_confidence",
+];
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
@@ -47,6 +54,7 @@ pub struct RulesConfig {
     pub severity: HashMap<String, SeverityValue>,
     pub quality: Option<bool>,
     pub security: Option<bool>,
+    pub min_confidence: Option<ConfidenceValue>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
@@ -65,6 +73,24 @@ impl From<SeverityValue> for Severity {
             SeverityValue::Warning => Severity::Warning,
             SeverityValue::Info => Severity::Info,
             SeverityValue::Hint => Severity::Hint,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ConfidenceValue {
+    High,
+    Medium,
+    Low,
+}
+
+impl From<ConfidenceValue> for Confidence {
+    fn from(value: ConfidenceValue) -> Self {
+        match value {
+            ConfidenceValue::High => Confidence::High,
+            ConfidenceValue::Medium => Confidence::Medium,
+            ConfidenceValue::Low => Confidence::Low,
         }
     }
 }
@@ -322,6 +348,34 @@ rule4 = "hint"
         assert_eq!(Severity::from(SeverityValue::Warning), Severity::Warning);
         assert_eq!(Severity::from(SeverityValue::Info), Severity::Info);
         assert_eq!(Severity::from(SeverityValue::Hint), Severity::Hint);
+    }
+
+    #[test]
+    fn confidence_value_converts_to_confidence() {
+        assert_eq!(Confidence::from(ConfidenceValue::High), Confidence::High);
+        assert_eq!(
+            Confidence::from(ConfidenceValue::Medium),
+            Confidence::Medium
+        );
+        assert_eq!(Confidence::from(ConfidenceValue::Low), Confidence::Low);
+    }
+
+    #[test]
+    fn min_confidence_parses_correctly() {
+        let dir = create_temp_dir();
+        let config_path = dir.path().join(CONFIG_FILENAME);
+        fs::write(
+            &config_path,
+            r#"
+[rules]
+min_confidence = "medium"
+"#,
+        )
+        .unwrap();
+
+        let config = load_config(&config_path).unwrap();
+
+        assert_eq!(config.rules.min_confidence, Some(ConfidenceValue::Medium));
     }
 
     #[test]

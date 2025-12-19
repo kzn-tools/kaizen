@@ -12,7 +12,7 @@ use swc_ecma_ast::{
 use crate::declare_rule;
 use crate::diagnostic::{Diagnostic, Fix};
 use crate::parser::ParsedFile;
-use crate::rules::{Rule, RuleMetadata, Severity};
+use crate::rules::{Confidence, Rule, RuleMetadata, Severity};
 use crate::semantic::types::DisposableTypesRegistry;
 use crate::visitor::VisitorContext;
 
@@ -241,6 +241,7 @@ impl<'a> PreferUsingVisitor<'a> {
                 let severity = match confidence {
                     Confidence::High => Severity::Warning,
                     Confidence::Medium => Severity::Info,
+                    Confidence::Low => Severity::Hint,
                 };
 
                 let using_keyword = if is_async || is_awaited {
@@ -268,6 +269,7 @@ impl<'a> PreferUsingVisitor<'a> {
 
                 let diagnostic =
                     Diagnostic::new("Q020", severity, message, &self.file_path, line, column)
+                        .with_confidence(confidence)
                         .with_suggestion(format!(
                             "Replace 'const {}' or 'let {}' with '{} {}'",
                             var_name, var_name, using_keyword, var_name
@@ -345,11 +347,6 @@ impl<'a> PreferUsingVisitor<'a> {
             _ => None,
         }
     }
-}
-
-enum Confidence {
-    High,
-    Medium,
 }
 
 struct CalleeInfo {
@@ -509,6 +506,7 @@ try {
 
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].severity, Severity::Warning);
+        assert_eq!(diagnostics[0].confidence, Confidence::High);
     }
 
     #[test]
@@ -518,6 +516,7 @@ try {
 
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].severity, Severity::Info);
+        assert_eq!(diagnostics[0].confidence, Confidence::Medium);
     }
 
     #[test]

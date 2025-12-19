@@ -4,7 +4,7 @@
 
 use colored::{ColoredString, Colorize};
 use lynx_core::diagnostic::Diagnostic;
-use lynx_core::rules::Severity;
+use lynx_core::rules::{Confidence, Severity};
 use std::collections::HashMap;
 use std::fs;
 
@@ -42,10 +42,12 @@ impl PrettyFormatter {
         let mut lines = Vec::new();
 
         let severity_str = self.colorize_severity(&diag.severity);
+        let confidence_str = self.colorize_confidence(&diag.confidence);
         let header = format!(
-            "{}[{}]: {}",
+            "{}[{}][{}]: {}",
             severity_str,
             diag.rule_id.dimmed(),
+            confidence_str,
             diag.message
         );
         lines.push(header);
@@ -114,6 +116,14 @@ impl PrettyFormatter {
             Severity::Warning => "warning".yellow().bold(),
             Severity::Info => "info".blue().bold(),
             Severity::Hint => "hint".cyan().bold(),
+        }
+    }
+
+    fn colorize_confidence(&self, confidence: &Confidence) -> ColoredString {
+        match confidence {
+            Confidence::High => "high".green(),
+            Confidence::Medium => "medium".yellow(),
+            Confidence::Low => "low".red(),
         }
     }
 
@@ -232,6 +242,27 @@ mod tests {
         let formatter = PrettyFormatter::new();
         let colored = formatter.colorize_severity(&Severity::Hint);
         assert_eq!(colored.to_string(), "hint".cyan().bold().to_string());
+    }
+
+    #[test]
+    fn colors_match_confidence_high() {
+        let formatter = PrettyFormatter::new();
+        let colored = formatter.colorize_confidence(&Confidence::High);
+        assert_eq!(colored.to_string(), "high".green().to_string());
+    }
+
+    #[test]
+    fn colors_match_confidence_medium() {
+        let formatter = PrettyFormatter::new();
+        let colored = formatter.colorize_confidence(&Confidence::Medium);
+        assert_eq!(colored.to_string(), "medium".yellow().to_string());
+    }
+
+    #[test]
+    fn colors_match_confidence_low() {
+        let formatter = PrettyFormatter::new();
+        let colored = formatter.colorize_confidence(&Confidence::Low);
+        assert_eq!(colored.to_string(), "low".red().to_string());
     }
 
     #[test]

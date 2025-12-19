@@ -2,7 +2,7 @@
 //!
 //! Provides structured diagnostic information for issues found during analysis.
 
-use crate::rules::Severity;
+use crate::rules::{Confidence, Severity};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FixKind {
@@ -62,6 +62,7 @@ impl Fix {
 pub struct Diagnostic {
     pub rule_id: String,
     pub severity: Severity,
+    pub confidence: Confidence,
     pub message: String,
     pub file: String,
     pub line: usize,
@@ -84,6 +85,7 @@ impl Diagnostic {
         Self {
             rule_id: rule_id.into(),
             severity,
+            confidence: Confidence::default(),
             message: message.into(),
             file: file.into(),
             line,
@@ -93,6 +95,11 @@ impl Diagnostic {
             suggestion: None,
             fixes: Vec::new(),
         }
+    }
+
+    pub fn with_confidence(mut self, confidence: Confidence) -> Self {
+        self.confidence = confidence;
+        self
     }
 
     pub fn with_end(mut self, end_line: usize, end_column: usize) -> Self {
