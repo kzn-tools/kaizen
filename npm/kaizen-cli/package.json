@@ -1,5 +1,5 @@
 {
-  "name": "@kaizen/cli",
+  "name": "kzn-cli",
   "version": "0.1.0",
   "description": "Ultra-fast JavaScript/TypeScript static analyzer written in Rust with security focus",
   "license": "MIT",
@@ -30,11 +30,11 @@
     "postinstall": "node install.js"
   },
   "optionalDependencies": {
-    "@kaizen/cli-linux-x64": "0.1.0",
-    "@kaizen/cli-linux-arm64": "0.1.0",
-    "@kaizen/cli-darwin-x64": "0.1.0",
-    "@kaizen/cli-darwin-arm64": "0.1.0",
-    "@kaizen/cli-win32-x64": "0.1.0"
+    "kzn-cli-linux-x64": "0.1.0",
+    "kzn-cli-linux-arm64": "0.1.0",
+    "kzn-cli-darwin-x64": "0.1.0",
+    "kzn-cli-darwin-arm64": "0.1.0",
+    "kzn-cli-win32-x64": "0.1.0"
   },
   "engines": {
     "node": ">=14"

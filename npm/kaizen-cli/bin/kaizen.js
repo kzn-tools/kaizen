@@ -4,11 +4,11 @@ const { execFileSync } = require("child_process");
 const path = require("path");
 
 const PLATFORMS = {
-  "linux-x64": "@kaizen/cli-linux-x64",
-  "linux-arm64": "@kaizen/cli-linux-arm64",
-  "darwin-x64": "@kaizen/cli-darwin-x64",
-  "darwin-arm64": "@kaizen/cli-darwin-arm64",
-  "win32-x64": "@kaizen/cli-win32-x64",
+  "linux-x64": "kzn-cli-linux-x64",
+  "linux-arm64": "kzn-cli-linux-arm64",
+  "darwin-x64": "kzn-cli-darwin-x64",
+  "darwin-arm64": "kzn-cli-darwin-arm64",
+  "win32-x64": "kzn-cli-win32-x64",
 };
 
 function getBinaryPath() {
@@ -34,7 +34,7 @@ function getBinaryPath() {
       return localBinary;
     }
 
-    console.error(`Binary not found. Please try reinstalling @kaizen/cli`);
+    console.error(`Binary not found. Please try reinstalling kzn-cli`);
     process.exit(1);
   }
 }

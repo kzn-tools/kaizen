@@ -1,17 +1,17 @@
-# @kaizen/cli
+# kzn-cli
 
 Ultra-fast JavaScript/TypeScript static analyzer written in Rust with security focus.
 
 ## Installation
 
 ```bash
-npm install -g @kaizen/cli
+npm install -g kzn-cli
 ```
 
 Or use without installing:
 
 ```bash
-npx @kaizen/cli analyze src/
+npx kzn-cli analyze src/
 ```
 
 ## Usage
@@ -37,11 +37,11 @@ kaizen --help
 
 This package automatically downloads the correct pre-built binary for your platform. The binaries are distributed through platform-specific npm packages:
 
-- `@kaizen/cli-linux-x64`
-- `@kaizen/cli-linux-arm64`
-- `@kaizen/cli-darwin-x64`
-- `@kaizen/cli-darwin-arm64`
-- `@kaizen/cli-win32-x64`
+- `kzn-cli-linux-x64`
+- `kzn-cli-linux-arm64`
+- `kzn-cli-darwin-x64`
+- `kzn-cli-darwin-arm64`
+- `kzn-cli-win32-x64`
 
 If the platform-specific package installation fails, the postinstall script will download the binary directly from GitHub releases.
 

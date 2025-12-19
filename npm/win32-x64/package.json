@@ -1,7 +1,7 @@
 {
-  "name": "@kaizen/cli-win32-x64",
+  "name": "kzn-cli-win32-x64",
   "version": "0.1.0",
-  "description": "Windows x64 binary for @kaizen/cli",
+  "description": "Windows x64 binary for kzn-cli",
   "license": "MIT",
   "repository": {
     "type": "git",

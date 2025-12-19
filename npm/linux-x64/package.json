@@ -1,7 +1,7 @@
 {
-  "name": "@kaizen/cli-linux-x64",
+  "name": "kzn-cli-linux-x64",
   "version": "0.1.0",
-  "description": "Linux x64 binary for @kaizen/cli",
+  "description": "Linux x64 binary for kzn-cli",
   "license": "MIT",
   "repository": {
     "type": "git",

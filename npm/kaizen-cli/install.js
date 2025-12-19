@@ -15,16 +15,11 @@ const VERSION = require("./package.json").version;
 const BINARY_NAME = "kaizen-cli";
 const REPO = "mpiton/kaizen";
 
-function getPlatformPackageName() {
-  const platformKey = `${process.platform}-${process.arch}`;
-  return `@kaizen/cli-${platformKey.replace("-", "-")}`;
-}
-
 function isPlatformPackageInstalled() {
   const platformKey = `${process.platform}-${process.arch}`;
   const binaryName = process.platform === "win32" ? `${BINARY_NAME}.exe` : BINARY_NAME;
   try {
-    require.resolve(`@kaizen/cli-${platformKey}/bin/${binaryName}`);
+    require.resolve(`kzn-cli-${platformKey}/bin/${binaryName}`);
     return true;
   } catch {
     return false;

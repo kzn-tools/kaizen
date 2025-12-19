@@ -178,11 +178,11 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           jq --arg v "$VERSION" '
             .version = $v |
-            .optionalDependencies["@kaizen/cli-linux-x64"] = $v |
-            .optionalDependencies["@kaizen/cli-linux-arm64"] = $v |
-            .optionalDependencies["@kaizen/cli-darwin-x64"] = $v |
-            .optionalDependencies["@kaizen/cli-darwin-arm64"] = $v |
-            .optionalDependencies["@kaizen/cli-win32-x64"] = $v
+            .optionalDependencies["kzn-cli-linux-x64"] = $v |
+            .optionalDependencies["kzn-cli-linux-arm64"] = $v |
+            .optionalDependencies["kzn-cli-darwin-x64"] = $v |
+            .optionalDependencies["kzn-cli-darwin-arm64"] = $v |
+            .optionalDependencies["kzn-cli-win32-x64"] = $v
           ' npm/kaizen-cli/package.json > tmp.json
           mv tmp.json npm/kaizen-cli/package.json
 
@@ -191,7 +191,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           for platform in linux-x64 linux-arm64 darwin-x64 darwin-arm64 win32-x64; do
-            echo "Publishing @kaizen/cli-$platform..."
+            echo "Publishing kzn-cli-$platform..."
             cd npm/$platform
             npm publish --access public || echo "Package may already exist"
             cd ../..
@@ -202,4 +202,4 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           cd npm/kaizen-cli
-          npm publish --access public || echo "Package may already exist"
+          npm publish || echo "Package may already exist"

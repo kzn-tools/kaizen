@@ -1,7 +1,7 @@
 {
-  "name": "@kaizen/cli-darwin-arm64",
+  "name": "kzn-cli-darwin-arm64",
   "version": "0.1.0",
-  "description": "macOS ARM64 (Apple Silicon) binary for @kaizen/cli",
+  "description": "macOS ARM64 (Apple Silicon) binary for kzn-cli",
   "license": "MIT",
   "repository": {
     "type": "git",
