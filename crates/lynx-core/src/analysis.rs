@@ -11,7 +11,7 @@ use crate::rules::quality::{
     NoUnusedImports, NoUnusedVars, NoVar, PreferConst, PreferNullishCoalescing,
     PreferOptionalChaining, PreferUsing,
 };
-use crate::rules::security::SqlInjection;
+use crate::rules::security::{CommandInjection, SqlInjection, Xss};
 
 pub struct AnalysisEngine {
     registry: RuleRegistry,
@@ -90,6 +90,8 @@ fn create_default_registry() -> RuleRegistry {
 
     // Security rules
     registry.register(Box::new(SqlInjection::new()));
+    registry.register(Box::new(Xss::new()));
+    registry.register(Box::new(CommandInjection::new()));
 
     registry
 }

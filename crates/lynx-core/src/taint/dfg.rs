@@ -31,6 +31,10 @@ pub enum DfgNodeKind {
         object: DfgNodeId,
         property: String,
     },
+    PropertyAssignment {
+        object: DfgNodeId,
+        property: String,
+    },
     BinaryOp {
         left: DfgNodeId,
         right: DfgNodeId,
@@ -586,8 +590,31 @@ impl<'a> DfgBuilder<'a> {
                     target_node
                 }
                 swc_ecma_ast::SimpleAssignTarget::Member(member) => {
-                    self.visit_member_expr(member);
-                    value_node
+                    let object_node = self.visit_expr(&member.obj);
+                    let property = match &member.prop {
+                        MemberProp::Ident(ident) => ident.sym.to_string(),
+                        MemberProp::Computed(computed) => {
+                            self.visit_expr(&computed.expr);
+                            "[computed]".to_string()
+                        }
+                        MemberProp::PrivateName(private) => format!("#{}", private.name),
+                    };
+
+                    if let Some(obj_id) = object_node {
+                        let assign_node = self.graph.create_node(
+                            DfgNodeKind::PropertyAssignment {
+                                object: obj_id,
+                                property,
+                            },
+                            member.span,
+                        );
+                        if let Some(value_id) = value_node {
+                            self.graph.add_edge(value_id, assign_node);
+                        }
+                        Some(assign_node)
+                    } else {
+                        value_node
+                    }
                 }
                 _ => value_node,
             },
