@@ -11,6 +11,7 @@ use swc_common::Span;
 use super::{
     DataFlowGraph, DfgNode, DfgNodeId, DfgNodeKind, TaintCategory, TaintSinkCategory,
     TaintSinkMatch, TaintSinksRegistry, TaintSourceMatch, TaintSourcesRegistry,
+    sanitizers::SanitizersRegistry,
 };
 
 #[derive(Debug, Clone)]
@@ -105,7 +106,9 @@ pub struct TaintPropagator<'a> {
     dfg: &'a DataFlowGraph,
     sources_registry: &'a TaintSourcesRegistry,
     sinks_registry: &'a TaintSinksRegistry,
+    sanitizers_registry: &'a SanitizersRegistry,
     state: TaintState,
+    sanitized_nodes: HashSet<DfgNodeId>,
 }
 
 impl<'a> TaintPropagator<'a> {
@@ -113,19 +116,66 @@ impl<'a> TaintPropagator<'a> {
         dfg: &'a DataFlowGraph,
         sources_registry: &'a TaintSourcesRegistry,
         sinks_registry: &'a TaintSinksRegistry,
+        sanitizers_registry: &'a SanitizersRegistry,
     ) -> Self {
         Self {
             dfg,
             sources_registry,
             sinks_registry,
+            sanitizers_registry,
             state: TaintState::new(),
+            sanitized_nodes: HashSet::new(),
         }
     }
 
     pub fn analyze(&mut self) -> Vec<TaintFinding> {
+        self.identify_sanitizers();
         self.identify_initial_taint();
         self.propagate();
         self.find_vulnerabilities()
+    }
+
+    fn identify_sanitizers(&mut self) {
+        for node in self.dfg.nodes() {
+            if let DfgNodeKind::Call { callee_name } = &node.kind {
+                if self.is_sanitizer_call(node, callee_name) {
+                    self.sanitized_nodes.insert(node.id);
+                }
+            }
+        }
+    }
+
+    fn is_sanitizer_call(&self, node: &DfgNode, callee_name: &str) -> bool {
+        if self
+            .sanitizers_registry
+            .is_sanitizer(&[callee_name.to_string()], None)
+            .is_some()
+        {
+            return true;
+        }
+
+        for &from_id in &node.flows_from {
+            let from_node = self.dfg.get(from_id);
+            if let DfgNodeKind::Variable { name, .. } = &from_node.kind {
+                if self
+                    .sanitizers_registry
+                    .is_sanitizer(std::slice::from_ref(name), Some(callee_name))
+                    .is_some()
+                {
+                    return true;
+                }
+            } else if let DfgNodeKind::PropertyAccess { property, .. } = &from_node.kind {
+                if self
+                    .sanitizers_registry
+                    .is_sanitizer(std::slice::from_ref(property), Some(callee_name))
+                    .is_some()
+                {
+                    return true;
+                }
+            }
+        }
+
+        false
     }
 
     fn identify_initial_taint(&mut self) {
@@ -217,6 +267,10 @@ impl<'a> TaintPropagator<'a> {
 
             let node = self.dfg.get(node_id);
             for &dependent in &node.flows_to {
+                if self.sanitized_nodes.contains(&dependent) {
+                    continue;
+                }
+
                 if !self.state.is_tainted(dependent) {
                     self.state.merge_taint(dependent, node_id);
                     worklist.push_back(dependent);
@@ -353,7 +407,8 @@ mod tests {
         let dfg = DataFlowGraph::build(module, &semantic);
         let sources = TaintSourcesRegistry::with_defaults();
         let sinks = TaintSinksRegistry::with_defaults();
-        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks);
+        let sanitizers = SanitizersRegistry::with_defaults();
+        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks, &sanitizers);
         let findings = propagator.analyze();
         (dfg, findings)
     }
@@ -371,7 +426,8 @@ mod tests {
         let (dfg, _) = analyze_code(code);
         let sources = TaintSourcesRegistry::with_defaults();
         let sinks = TaintSinksRegistry::with_defaults();
-        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks);
+        let sanitizers = SanitizersRegistry::with_defaults();
+        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks, &sanitizers);
         propagator.analyze();
 
         let y_node = dfg
@@ -398,7 +454,8 @@ mod tests {
         let (dfg, _) = analyze_code(code);
         let sources = TaintSourcesRegistry::with_defaults();
         let sinks = TaintSinksRegistry::with_defaults();
-        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks);
+        let sanitizers = SanitizersRegistry::with_defaults();
+        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks, &sanitizers);
         propagator.analyze();
 
         let query_node = dfg
@@ -425,7 +482,8 @@ mod tests {
         let (dfg, _) = analyze_code(code);
         let sources = TaintSourcesRegistry::with_defaults();
         let sinks = TaintSinksRegistry::with_defaults();
-        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks);
+        let sanitizers = SanitizersRegistry::with_defaults();
+        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks, &sanitizers);
         propagator.analyze();
 
         let greeting_node = dfg
@@ -452,7 +510,8 @@ mod tests {
         let (dfg, _) = analyze_code(code);
         let sources = TaintSourcesRegistry::with_defaults();
         let sinks = TaintSinksRegistry::with_defaults();
-        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks);
+        let sanitizers = SanitizersRegistry::with_defaults();
+        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks, &sanitizers);
         propagator.analyze();
 
         let result_node = dfg
@@ -549,7 +608,8 @@ mod tests {
         let (dfg, _) = analyze_code(code);
         let sources = TaintSourcesRegistry::with_defaults();
         let sinks = TaintSinksRegistry::with_defaults();
-        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks);
+        let sanitizers = SanitizersRegistry::with_defaults();
+        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks, &sanitizers);
         propagator.analyze();
 
         let req_param = dfg
@@ -595,7 +655,8 @@ mod tests {
         let (dfg, _) = analyze_code(code);
         let sources = TaintSourcesRegistry::with_defaults();
         let sinks = TaintSinksRegistry::with_defaults();
-        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks);
+        let sanitizers = SanitizersRegistry::with_defaults();
+        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks, &sanitizers);
         propagator.analyze();
 
         let combined_node = dfg
@@ -640,7 +701,8 @@ mod tests {
         let (dfg, _) = analyze_code(code);
         let sources = TaintSourcesRegistry::with_defaults();
         let sinks = TaintSinksRegistry::with_defaults();
-        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks);
+        let sanitizers = SanitizersRegistry::with_defaults();
+        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks, &sanitizers);
         propagator.analyze();
 
         let value_node = dfg
@@ -667,7 +729,8 @@ mod tests {
         let (dfg, _) = analyze_code(code);
         let sources = TaintSourcesRegistry::with_defaults();
         let sinks = TaintSinksRegistry::with_defaults();
-        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks);
+        let sanitizers = SanitizersRegistry::with_defaults();
+        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks, &sanitizers);
         propagator.analyze();
 
         let value_node = dfg
@@ -694,7 +757,8 @@ mod tests {
         let (dfg, _) = analyze_code(code);
         let sources = TaintSourcesRegistry::with_defaults();
         let sinks = TaintSinksRegistry::with_defaults();
-        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks);
+        let sanitizers = SanitizersRegistry::with_defaults();
+        let mut propagator = TaintPropagator::new(&dfg, &sources, &sinks, &sanitizers);
         propagator.analyze();
 
         let doubled_node = dfg
