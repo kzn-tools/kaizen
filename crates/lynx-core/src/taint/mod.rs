@@ -4,11 +4,15 @@
 
 pub mod dfg;
 pub mod propagation;
+pub mod sanitizers;
 pub mod sinks;
 pub mod sources;
 
 pub use dfg::{DataFlowGraph, DfgNode, DfgNodeId, DfgNodeKind};
 pub use propagation::{TaintFinding, TaintPropagator, TaintState, TaintedNode};
+pub use sanitizers::{
+    SanitizerCategory, SanitizerKind, SanitizerMatch, SanitizerPattern, SanitizersRegistry,
+};
 pub use sinks::{
     TaintSinkCategory, TaintSinkKind, TaintSinkMatch, TaintSinkPattern, TaintSinksRegistry,
 };
@@ -24,6 +28,7 @@ use crate::semantic::ScopeBuilder;
 pub struct TaintAnalyzer {
     sources_registry: TaintSourcesRegistry,
     sinks_registry: TaintSinksRegistry,
+    sanitizers_registry: SanitizersRegistry,
 }
 
 impl Default for TaintAnalyzer {
@@ -37,16 +42,19 @@ impl TaintAnalyzer {
         Self {
             sources_registry: TaintSourcesRegistry::with_defaults(),
             sinks_registry: TaintSinksRegistry::with_defaults(),
+            sanitizers_registry: SanitizersRegistry::with_defaults(),
         }
     }
 
     pub fn with_registries(
         sources_registry: TaintSourcesRegistry,
         sinks_registry: TaintSinksRegistry,
+        sanitizers_registry: SanitizersRegistry,
     ) -> Self {
         Self {
             sources_registry,
             sinks_registry,
+            sanitizers_registry,
         }
     }
 
@@ -58,8 +66,12 @@ impl TaintAnalyzer {
 
         let semantic = ScopeBuilder::build(module);
         let dfg = DataFlowGraph::build(module, &semantic);
-        let mut propagator =
-            TaintPropagator::new(&dfg, &self.sources_registry, &self.sinks_registry);
+        let mut propagator = TaintPropagator::new(
+            &dfg,
+            &self.sources_registry,
+            &self.sinks_registry,
+            &self.sanitizers_registry,
+        );
         propagator.analyze()
     }
 
@@ -69,6 +81,10 @@ impl TaintAnalyzer {
 
     pub fn sinks_registry(&self) -> &TaintSinksRegistry {
         &self.sinks_registry
+    }
+
+    pub fn sanitizers_registry(&self) -> &SanitizersRegistry {
+        &self.sanitizers_registry
     }
 }
 
