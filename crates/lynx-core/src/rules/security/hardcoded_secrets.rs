@@ -359,7 +359,10 @@ mod tests {
     #[test]
     fn detects_stripe_live_key() {
         let patterns = get_secret_patterns();
-        let stripe_pattern = patterns.iter().find(|p| p.name == "Stripe Live Key").unwrap();
+        let stripe_pattern = patterns
+            .iter()
+            .find(|p| p.name == "Stripe Live Key")
+            .unwrap();
         let test_key = make_stripe_key("sk_live_", 28);
         assert!(
             stripe_pattern.regex.is_match(&test_key),
@@ -377,7 +380,10 @@ mod tests {
     #[test]
     fn detects_stripe_test_key() {
         let patterns = get_secret_patterns();
-        let stripe_pattern = patterns.iter().find(|p| p.name == "Stripe Test Key").unwrap();
+        let stripe_pattern = patterns
+            .iter()
+            .find(|p| p.name == "Stripe Test Key")
+            .unwrap();
         let test_key = make_stripe_key("sk_test_", 28);
         assert!(
             stripe_pattern.regex.is_match(&test_key),
