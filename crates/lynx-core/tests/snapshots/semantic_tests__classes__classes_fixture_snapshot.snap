@@ -181,7 +181,7 @@ expression: snapshot
       "has_parent": true
     }
   ],
-  "symbol_count": 26,
+  "symbol_count": 27,
   "symbols": [
     {
       "name": "Animal",
@@ -208,6 +208,13 @@ expression: snapshot
       "name": "Dog",
       "kind": "Class",
       "declaration_kind": "Class",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "Drawable",
+      "kind": "TypeAlias",
+      "declaration_kind": "TypeAlias",
       "is_exported": false,
       "references_count": 0
     },

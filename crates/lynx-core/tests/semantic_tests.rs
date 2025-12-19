@@ -75,6 +75,7 @@ fn symbol_kind_to_string(kind: SymbolKind) -> String {
         SymbolKind::Parameter => "Parameter",
         SymbolKind::Import => "Import",
         SymbolKind::TypeAlias => "TypeAlias",
+        SymbolKind::Enum => "Enum",
     }
     .to_string()
 }
@@ -88,6 +89,8 @@ fn declaration_kind_to_string(kind: DeclarationKind) -> String {
         DeclarationKind::Class => "Class",
         DeclarationKind::Parameter => "Parameter",
         DeclarationKind::Import => "Import",
+        DeclarationKind::TypeAlias => "TypeAlias",
+        DeclarationKind::Enum => "Enum",
     }
     .to_string()
 }
@@ -780,6 +783,433 @@ function defaults(a, b = a * 2) {
         assert!(
             !a_symbol.references.is_empty(),
             "a should be referenced in default parameter"
+        );
+    }
+}
+
+mod typescript {
+    use super::*;
+
+    #[test]
+    fn typescript_interfaces_fixture_snapshot() {
+        let code = read_fixture("typescript/interfaces.ts");
+        let model = build_semantic_model(&code, "interfaces.ts");
+        let snapshot = create_snapshot(&model);
+        assert_json_snapshot!(snapshot);
+    }
+
+    #[test]
+    fn interface_registered_as_symbol() {
+        let code = r#"
+interface User {
+    id: number;
+    name: string;
+}
+"#;
+        let model = build_semantic_model(code, "test.ts");
+
+        let global = model.scope_tree.root().unwrap();
+        let user = model.symbol_table.lookup("User", global, &model.scope_tree);
+        assert!(user.is_some(), "Interface User should be registered");
+        assert_eq!(
+            model.symbol_table.get(user.unwrap()).kind,
+            SymbolKind::TypeAlias
+        );
+    }
+
+    #[test]
+    fn type_alias_registered_as_symbol() {
+        let code = r#"
+type UserId = number;
+type UserRole = 'admin' | 'user' | 'guest';
+"#;
+        let model = build_semantic_model(code, "test.ts");
+
+        let global = model.scope_tree.root().unwrap();
+
+        let user_id = model
+            .symbol_table
+            .lookup("UserId", global, &model.scope_tree);
+        let user_role = model
+            .symbol_table
+            .lookup("UserRole", global, &model.scope_tree);
+
+        assert!(user_id.is_some(), "Type alias UserId should be registered");
+        assert!(
+            user_role.is_some(),
+            "Type alias UserRole should be registered"
+        );
+
+        assert_eq!(
+            model.symbol_table.get(user_id.unwrap()).kind,
+            SymbolKind::TypeAlias
+        );
+        assert_eq!(
+            model.symbol_table.get(user_role.unwrap()).kind,
+            SymbolKind::TypeAlias
+        );
+    }
+
+    #[test]
+    fn enum_registered_as_symbol() {
+        let code = r#"
+enum Status {
+    Pending,
+    Active,
+    Completed
+}
+"#;
+        let model = build_semantic_model(code, "test.ts");
+
+        let global = model.scope_tree.root().unwrap();
+        let status = model
+            .symbol_table
+            .lookup("Status", global, &model.scope_tree);
+
+        assert!(status.is_some(), "Enum Status should be registered");
+        assert_eq!(
+            model.symbol_table.get(status.unwrap()).kind,
+            SymbolKind::Enum
+        );
+    }
+
+    #[test]
+    fn exported_interface_marked_as_exported() {
+        let code = r#"
+export interface PublicApi {
+    endpoint: string;
+}
+
+interface PrivateApi {
+    secret: string;
+}
+"#;
+        let model = build_semantic_model(code, "test.ts");
+
+        let global = model.scope_tree.root().unwrap();
+
+        let public_api = model
+            .symbol_table
+            .lookup("PublicApi", global, &model.scope_tree)
+            .unwrap();
+        let private_api = model
+            .symbol_table
+            .lookup("PrivateApi", global, &model.scope_tree)
+            .unwrap();
+
+        assert!(
+            model.symbol_table.get(public_api).is_exported,
+            "PublicApi should be exported"
+        );
+        assert!(
+            !model.symbol_table.get(private_api).is_exported,
+            "PrivateApi should not be exported"
+        );
+    }
+
+    #[test]
+    fn exported_type_alias_marked_as_exported() {
+        let code = r#"
+export type UserId = string;
+type InternalId = number;
+"#;
+        let model = build_semantic_model(code, "test.ts");
+
+        let global = model.scope_tree.root().unwrap();
+
+        let user_id = model
+            .symbol_table
+            .lookup("UserId", global, &model.scope_tree)
+            .unwrap();
+        let internal_id = model
+            .symbol_table
+            .lookup("InternalId", global, &model.scope_tree)
+            .unwrap();
+
+        assert!(
+            model.symbol_table.get(user_id).is_exported,
+            "UserId should be exported"
+        );
+        assert!(
+            !model.symbol_table.get(internal_id).is_exported,
+            "InternalId should not be exported"
+        );
+    }
+
+    #[test]
+    fn exported_enum_marked_as_exported() {
+        let code = r#"
+export enum PublicStatus {
+    Open,
+    Closed
+}
+
+enum PrivateStatus {
+    Internal
+}
+"#;
+        let model = build_semantic_model(code, "test.ts");
+
+        let global = model.scope_tree.root().unwrap();
+
+        let public_status = model
+            .symbol_table
+            .lookup("PublicStatus", global, &model.scope_tree)
+            .unwrap();
+        let private_status = model
+            .symbol_table
+            .lookup("PrivateStatus", global, &model.scope_tree)
+            .unwrap();
+
+        assert!(
+            model.symbol_table.get(public_status).is_exported,
+            "PublicStatus should be exported"
+        );
+        assert!(
+            !model.symbol_table.get(private_status).is_exported,
+            "PrivateStatus should not be exported"
+        );
+    }
+
+    #[test]
+    fn type_only_import_registered() {
+        let code = r#"
+import type { User, Role } from './types';
+"#;
+        let model = build_semantic_model(code, "test.ts");
+
+        let global = model.scope_tree.root().unwrap();
+
+        let user = model.symbol_table.lookup("User", global, &model.scope_tree);
+        let role = model.symbol_table.lookup("Role", global, &model.scope_tree);
+
+        assert!(user.is_some(), "Type import User should be registered");
+        assert!(role.is_some(), "Type import Role should be registered");
+
+        assert_eq!(
+            model.symbol_table.get(user.unwrap()).kind,
+            SymbolKind::Import
+        );
+        assert_eq!(
+            model.symbol_table.get(role.unwrap()).kind,
+            SymbolKind::Import
+        );
+    }
+
+    #[test]
+    fn generic_interface_registered() {
+        let code = r#"
+interface Repository<T> {
+    find(id: number): Promise<T | null>;
+    save(entity: T): Promise<T>;
+}
+"#;
+        let model = build_semantic_model(code, "test.ts");
+
+        let global = model.scope_tree.root().unwrap();
+        let repo = model
+            .symbol_table
+            .lookup("Repository", global, &model.scope_tree);
+
+        assert!(
+            repo.is_some(),
+            "Generic interface Repository should be registered"
+        );
+        assert_eq!(
+            model.symbol_table.get(repo.unwrap()).kind,
+            SymbolKind::TypeAlias
+        );
+    }
+
+    #[test]
+    fn function_with_type_annotations() {
+        let code = r#"
+function add(a: number, b: number): number {
+    return a + b;
+}
+"#;
+        let model = build_semantic_model(code, "test.ts");
+
+        let global = model.scope_tree.root().unwrap();
+        let add_fn = model.symbol_table.lookup("add", global, &model.scope_tree);
+
+        assert!(add_fn.is_some(), "Function add should be registered");
+        assert_eq!(
+            model.symbol_table.get(add_fn.unwrap()).kind,
+            SymbolKind::Function
+        );
+
+        let func_scope = model.scope_tree.get(global).children[0];
+        let a = model
+            .symbol_table
+            .lookup("a", func_scope, &model.scope_tree);
+        let b = model
+            .symbol_table
+            .lookup("b", func_scope, &model.scope_tree);
+
+        assert!(a.is_some(), "Parameter a should be registered");
+        assert!(b.is_some(), "Parameter b should be registered");
+    }
+
+    #[test]
+    fn class_implementing_interface() {
+        let code = r#"
+interface Comparable {
+    compare(other: unknown): number;
+}
+
+class NumberWrapper implements Comparable {
+    constructor(private value: number) {}
+
+    compare(other: unknown): number {
+        return this.value - (other as number);
+    }
+}
+"#;
+        let model = build_semantic_model(code, "test.ts");
+
+        let global = model.scope_tree.root().unwrap();
+
+        let comparable = model
+            .symbol_table
+            .lookup("Comparable", global, &model.scope_tree);
+        let number_wrapper = model
+            .symbol_table
+            .lookup("NumberWrapper", global, &model.scope_tree);
+
+        assert!(
+            comparable.is_some(),
+            "Interface Comparable should be registered"
+        );
+        assert!(
+            number_wrapper.is_some(),
+            "Class NumberWrapper should be registered"
+        );
+
+        assert_eq!(
+            model.symbol_table.get(comparable.unwrap()).kind,
+            SymbolKind::TypeAlias
+        );
+        assert_eq!(
+            model.symbol_table.get(number_wrapper.unwrap()).kind,
+            SymbolKind::Class
+        );
+    }
+
+    #[test]
+    fn tsx_component_analysis() {
+        let code = read_fixture("typescript/tsx-component.tsx");
+        let model = build_semantic_model(&code, "component.tsx");
+
+        let global = model.scope_tree.root().unwrap();
+
+        let button_props = model
+            .symbol_table
+            .lookup("ButtonProps", global, &model.scope_tree);
+        let todo_item = model
+            .symbol_table
+            .lookup("TodoItem", global, &model.scope_tree);
+        let button = model
+            .symbol_table
+            .lookup("Button", global, &model.scope_tree);
+
+        assert!(
+            button_props.is_some(),
+            "Interface ButtonProps should be registered"
+        );
+        assert!(
+            todo_item.is_some(),
+            "Interface TodoItem should be registered"
+        );
+        assert!(button.is_some(), "Component Button should be registered");
+
+        assert_eq!(
+            model.symbol_table.get(button_props.unwrap()).kind,
+            SymbolKind::TypeAlias
+        );
+        assert_eq!(
+            model.symbol_table.get(button.unwrap()).kind,
+            SymbolKind::Constant
+        );
+    }
+
+    #[test]
+    fn const_enum() {
+        let code = r#"
+const enum Direction {
+    Up,
+    Down,
+    Left,
+    Right
+}
+"#;
+        let model = build_semantic_model(code, "test.ts");
+
+        let global = model.scope_tree.root().unwrap();
+        let direction = model
+            .symbol_table
+            .lookup("Direction", global, &model.scope_tree);
+
+        assert!(
+            direction.is_some(),
+            "Const enum Direction should be registered"
+        );
+        assert_eq!(
+            model.symbol_table.get(direction.unwrap()).kind,
+            SymbolKind::Enum
+        );
+    }
+
+    #[test]
+    fn multiple_types_in_same_file() {
+        let code = r#"
+interface User {
+    id: number;
+    name: string;
+}
+
+type UserRole = 'admin' | 'user';
+
+enum Status {
+    Active,
+    Inactive
+}
+
+class UserService {
+    private users: User[] = [];
+}
+"#;
+        let model = build_semantic_model(code, "test.ts");
+
+        let global = model.scope_tree.root().unwrap();
+
+        assert!(
+            model
+                .symbol_table
+                .lookup("User", global, &model.scope_tree)
+                .is_some(),
+            "Interface User should be registered"
+        );
+        assert!(
+            model
+                .symbol_table
+                .lookup("UserRole", global, &model.scope_tree)
+                .is_some(),
+            "Type alias UserRole should be registered"
+        );
+        assert!(
+            model
+                .symbol_table
+                .lookup("Status", global, &model.scope_tree)
+                .is_some(),
+            "Enum Status should be registered"
+        );
+        assert!(
+            model
+                .symbol_table
+                .lookup("UserService", global, &model.scope_tree)
+                .is_some(),
+            "Class UserService should be registered"
         );
     }
 }

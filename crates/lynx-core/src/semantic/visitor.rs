@@ -194,6 +194,33 @@ impl ScopeBuilder {
             }
             Decl::Fn(fn_decl) => self.visit_fn_decl(fn_decl, is_exported),
             Decl::Class(class_decl) => self.visit_class_decl(class_decl, is_exported),
+            Decl::TsInterface(ts_interface) => {
+                self.declare_symbol(
+                    &ts_interface.id.sym,
+                    SymbolKind::TypeAlias,
+                    DeclarationKind::TypeAlias,
+                    ts_interface.id.span,
+                    is_exported,
+                );
+            }
+            Decl::TsTypeAlias(ts_type_alias) => {
+                self.declare_symbol(
+                    &ts_type_alias.id.sym,
+                    SymbolKind::TypeAlias,
+                    DeclarationKind::TypeAlias,
+                    ts_type_alias.id.span,
+                    is_exported,
+                );
+            }
+            Decl::TsEnum(ts_enum) => {
+                self.declare_symbol(
+                    &ts_enum.id.sym,
+                    SymbolKind::Enum,
+                    DeclarationKind::Enum,
+                    ts_enum.id.span,
+                    is_exported,
+                );
+            }
             _ => {}
         }
     }
