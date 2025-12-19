@@ -8,7 +8,8 @@ use crate::parser::ParsedFile;
 use crate::rules::RuleRegistry;
 use crate::rules::quality::{
     Eqeqeq, FloatingPromises, MaxComplexity, MaxDepth, NoConsole, NoEval, NoUnreachable,
-    NoUnusedVars, NoVar, PreferNullishCoalescing, PreferOptionalChaining, PreferUsing,
+    NoUnusedImports, NoUnusedVars, NoVar, PreferNullishCoalescing, PreferOptionalChaining,
+    PreferUsing,
 };
 
 pub struct AnalysisEngine {
@@ -73,6 +74,7 @@ fn create_default_registry() -> RuleRegistry {
     registry.register(Box::new(MaxComplexity::new()));
     registry.register(Box::new(MaxDepth::new()));
     registry.register(Box::new(NoUnreachable::new()));
+    registry.register(Box::new(NoUnusedImports::new()));
     registry.register(Box::new(NoVar::new()));
     registry.register(Box::new(Eqeqeq::new()));
     registry.register(Box::new(NoConsole::new()));
