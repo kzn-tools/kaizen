@@ -18,6 +18,7 @@ pub enum SanitizerCategory {
     SqlInjection,
     Xss,
     PathTraversal,
+    UrlEncoding,
     General,
 }
 
@@ -28,9 +29,18 @@ impl SanitizerCategory {
             SanitizerCategory::SqlInjection => "sql_injection",
             SanitizerCategory::Xss => "xss",
             SanitizerCategory::PathTraversal => "path_traversal",
+            SanitizerCategory::UrlEncoding => "url_encoding",
             SanitizerCategory::General => "general",
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CustomSanitizerConfig {
+    pub callee_path: Vec<String>,
+    pub method: Option<String>,
+    pub category: SanitizerCategory,
+    pub description: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -141,6 +151,7 @@ impl SanitizersRegistry {
         registry.register_sql_sanitizers();
         registry.register_xss_sanitizers();
         registry.register_path_sanitizers();
+        registry.register_url_encoding_sanitizers();
         registry
     }
 
@@ -237,6 +248,72 @@ impl SanitizersRegistry {
             SanitizerCategory::SqlInjection,
             "PostgreSQL identifier escape",
         ));
+
+        self.register_pattern(SanitizerPattern::builtin(
+            vec!["mysql"],
+            Some("format"),
+            SanitizerCategory::SqlInjection,
+            "MySQL parameterized format",
+        ));
+
+        self.register_pattern(SanitizerPattern::builtin(
+            vec!["sqlstring"],
+            Some("format"),
+            SanitizerCategory::SqlInjection,
+            "sqlstring parameterized format",
+        ));
+
+        let db_objects = ["db", "database", "connection", "conn", "pool", "client"];
+        for obj in db_objects {
+            self.register_pattern(SanitizerPattern::builtin(
+                vec![obj],
+                Some("prepare"),
+                SanitizerCategory::SqlInjection,
+                "Prepared statement",
+            ));
+        }
+
+        self.register_pattern(SanitizerPattern::builtin(
+            vec!["statement"],
+            Some("bind"),
+            SanitizerCategory::SqlInjection,
+            "Statement parameter binding",
+        ));
+
+        self.register_pattern(SanitizerPattern::builtin(
+            vec!["stmt"],
+            Some("bind"),
+            SanitizerCategory::SqlInjection,
+            "Statement parameter binding",
+        ));
+
+        self.register_pattern(SanitizerPattern::builtin(
+            vec!["knex"],
+            Some("bind"),
+            SanitizerCategory::SqlInjection,
+            "Knex parameter binding",
+        ));
+
+        self.register_pattern(SanitizerPattern::builtin(
+            vec!["sql"],
+            None,
+            SanitizerCategory::SqlInjection,
+            "Tagged template SQL literal",
+        ));
+
+        self.register_pattern(SanitizerPattern::builtin(
+            vec!["Prisma"],
+            Some("sql"),
+            SanitizerCategory::SqlInjection,
+            "Prisma SQL template tag",
+        ));
+
+        self.register_pattern(SanitizerPattern::builtin(
+            vec!["prisma"],
+            Some("sql"),
+            SanitizerCategory::SqlInjection,
+            "Prisma SQL template tag",
+        ));
     }
 
     fn register_xss_sanitizers(&mut self) {
@@ -313,6 +390,64 @@ impl SanitizersRegistry {
         ));
     }
 
+    fn register_url_encoding_sanitizers(&mut self) {
+        self.register_pattern(SanitizerPattern::builtin(
+            vec!["encodeURIComponent"],
+            None,
+            SanitizerCategory::UrlEncoding,
+            "URL component encoding",
+        ));
+
+        self.register_pattern(SanitizerPattern::builtin(
+            vec!["encodeURI"],
+            None,
+            SanitizerCategory::UrlEncoding,
+            "URL encoding",
+        ));
+
+        self.register_pattern(SanitizerPattern::builtin(
+            vec!["escape"],
+            None,
+            SanitizerCategory::UrlEncoding,
+            "Legacy URL escape function",
+        ));
+
+        self.register_pattern(SanitizerPattern::builtin(
+            vec!["URLSearchParams"],
+            Some("toString"),
+            SanitizerCategory::UrlEncoding,
+            "URLSearchParams encoding",
+        ));
+
+        self.register_pattern(SanitizerPattern::builtin(
+            vec!["url"],
+            Some("format"),
+            SanitizerCategory::UrlEncoding,
+            "Node.js url.format",
+        ));
+
+        self.register_pattern(SanitizerPattern::builtin(
+            vec!["querystring"],
+            Some("stringify"),
+            SanitizerCategory::UrlEncoding,
+            "Node.js querystring encoding",
+        ));
+
+        self.register_pattern(SanitizerPattern::builtin(
+            vec!["querystring"],
+            Some("escape"),
+            SanitizerCategory::UrlEncoding,
+            "Node.js querystring escape",
+        ));
+
+        self.register_pattern(SanitizerPattern::builtin(
+            vec!["qs"],
+            Some("stringify"),
+            SanitizerCategory::UrlEncoding,
+            "qs library encoding",
+        ));
+    }
+
     pub fn register_pattern(&mut self, pattern: SanitizerPattern) {
         let index = self.patterns.len();
 
@@ -371,6 +506,24 @@ impl SanitizersRegistry {
             .iter()
             .filter(|p| p.category == category)
             .collect()
+    }
+
+    pub fn register_custom_sanitizers(&mut self, configs: &[CustomSanitizerConfig]) {
+        for config in configs {
+            let callee_path: Vec<&str> = config.callee_path.iter().map(|s| s.as_str()).collect();
+            self.register_pattern(SanitizerPattern::custom(
+                callee_path,
+                config.method.as_deref(),
+                config.category,
+                &config.description,
+            ));
+        }
+    }
+
+    pub fn with_custom_sanitizers(configs: &[CustomSanitizerConfig]) -> Self {
+        let mut registry = Self::with_defaults();
+        registry.register_custom_sanitizers(configs);
+        registry
     }
 }
 
@@ -536,6 +689,7 @@ mod tests {
         assert_eq!(SanitizerCategory::SqlInjection.as_str(), "sql_injection");
         assert_eq!(SanitizerCategory::Xss.as_str(), "xss");
         assert_eq!(SanitizerCategory::PathTraversal.as_str(), "path_traversal");
+        assert_eq!(SanitizerCategory::UrlEncoding.as_str(), "url_encoding");
         assert_eq!(SanitizerCategory::General.as_str(), "general");
     }
 
@@ -587,5 +741,155 @@ mod tests {
             SanitizerCategory::SqlInjection,
         );
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn encode_uri_component_is_sanitizer() {
+        let registry = registry();
+        let result = registry.is_sanitizer(&["encodeURIComponent".into()], None);
+        assert!(result.is_some());
+        let m = result.unwrap();
+        assert_eq!(m.pattern.category, SanitizerCategory::UrlEncoding);
+    }
+
+    #[test]
+    fn encode_uri_is_sanitizer() {
+        let registry = registry();
+        let result = registry.is_sanitizer(&["encodeURI".into()], None);
+        assert!(result.is_some());
+        let m = result.unwrap();
+        assert_eq!(m.pattern.category, SanitizerCategory::UrlEncoding);
+    }
+
+    #[test]
+    fn url_search_params_to_string_is_sanitizer() {
+        let registry = registry();
+        let result = registry.is_sanitizer(&["URLSearchParams".into()], Some("toString"));
+        assert!(result.is_some());
+        let m = result.unwrap();
+        assert_eq!(m.pattern.category, SanitizerCategory::UrlEncoding);
+    }
+
+    #[test]
+    fn querystring_stringify_is_sanitizer() {
+        let registry = registry();
+        let result = registry.is_sanitizer(&["querystring".into()], Some("stringify"));
+        assert!(result.is_some());
+        let m = result.unwrap();
+        assert_eq!(m.pattern.category, SanitizerCategory::UrlEncoding);
+    }
+
+    #[test]
+    fn qs_stringify_is_sanitizer() {
+        let registry = registry();
+        let result = registry.is_sanitizer(&["qs".into()], Some("stringify"));
+        assert!(result.is_some());
+        let m = result.unwrap();
+        assert_eq!(m.pattern.category, SanitizerCategory::UrlEncoding);
+    }
+
+    #[test]
+    fn mysql_format_is_sanitizer() {
+        let registry = registry();
+        let result = registry.is_sanitizer(&["mysql".into()], Some("format"));
+        assert!(result.is_some());
+        let m = result.unwrap();
+        assert_eq!(m.pattern.category, SanitizerCategory::SqlInjection);
+    }
+
+    #[test]
+    fn db_prepare_is_sanitizer() {
+        let registry = registry();
+        let result = registry.is_sanitizer(&["db".into()], Some("prepare"));
+        assert!(result.is_some());
+        let m = result.unwrap();
+        assert_eq!(m.pattern.category, SanitizerCategory::SqlInjection);
+    }
+
+    #[test]
+    fn connection_prepare_is_sanitizer() {
+        let registry = registry();
+        let result = registry.is_sanitizer(&["connection".into()], Some("prepare"));
+        assert!(result.is_some());
+        let m = result.unwrap();
+        assert_eq!(m.pattern.category, SanitizerCategory::SqlInjection);
+    }
+
+    #[test]
+    fn statement_bind_is_sanitizer() {
+        let registry = registry();
+        let result = registry.is_sanitizer(&["statement".into()], Some("bind"));
+        assert!(result.is_some());
+        let m = result.unwrap();
+        assert_eq!(m.pattern.category, SanitizerCategory::SqlInjection);
+    }
+
+    #[test]
+    fn sql_tagged_template_is_sanitizer() {
+        let registry = registry();
+        let result = registry.is_sanitizer(&["sql".into()], None);
+        assert!(result.is_some());
+        let m = result.unwrap();
+        assert_eq!(m.pattern.category, SanitizerCategory::SqlInjection);
+    }
+
+    #[test]
+    fn prisma_sql_is_sanitizer() {
+        let registry = registry();
+        let result = registry.is_sanitizer(&["prisma".into()], Some("sql"));
+        assert!(result.is_some());
+        let m = result.unwrap();
+        assert_eq!(m.pattern.category, SanitizerCategory::SqlInjection);
+    }
+
+    #[test]
+    fn custom_sanitizer_config_registration() {
+        let configs = vec![
+            CustomSanitizerConfig {
+                callee_path: vec!["myCompany".to_string(), "sanitize".to_string()],
+                method: Some("html".to_string()),
+                category: SanitizerCategory::Xss,
+                description: "Company HTML sanitizer".to_string(),
+            },
+            CustomSanitizerConfig {
+                callee_path: vec!["customEscape".to_string()],
+                method: None,
+                category: SanitizerCategory::SqlInjection,
+                description: "Custom SQL escape".to_string(),
+            },
+        ];
+
+        let registry = SanitizersRegistry::with_custom_sanitizers(&configs);
+
+        let result = registry.is_sanitizer(&["myCompany".into(), "sanitize".into()], Some("html"));
+        assert!(result.is_some());
+        let m = result.unwrap();
+        assert_eq!(m.pattern.category, SanitizerCategory::Xss);
+        assert_eq!(m.pattern.kind, SanitizerKind::Custom);
+
+        let result = registry.is_sanitizer(&["customEscape".into()], None);
+        assert!(result.is_some());
+        let m = result.unwrap();
+        assert_eq!(m.pattern.category, SanitizerCategory::SqlInjection);
+        assert_eq!(m.pattern.kind, SanitizerKind::Custom);
+    }
+
+    #[test]
+    fn url_encoding_patterns_exist() {
+        let registry = registry();
+        let url_patterns = registry.patterns_for_category(SanitizerCategory::UrlEncoding);
+        assert!(!url_patterns.is_empty());
+        assert!(url_patterns.len() >= 5);
+    }
+
+    #[test]
+    fn parameterized_query_patterns_exist() {
+        let registry = registry();
+        let sql_patterns = registry.patterns_for_category(SanitizerCategory::SqlInjection);
+        let prepare_patterns: Vec<_> = sql_patterns
+            .iter()
+            .filter(|p| p.description.contains("Prepared") || p.description.contains("format"))
+            .collect();
+        assert!(!prepare_patterns.is_empty());
     }
 }
