@@ -3,8 +3,13 @@
 //! Used for detecting security vulnerabilities by tracking untrusted data.
 
 pub mod dfg;
+pub mod sources;
 
 pub use dfg::{DataFlowGraph, DfgNode, DfgNodeId, DfgNodeKind};
+pub use sources::{
+    PropertyMatcher, TaintCategory, TaintSourceKind, TaintSourceMatch, TaintSourcePattern,
+    TaintSourcesRegistry,
+};
 
 #[derive(Debug)]
 pub struct TaintAnalyzer;
