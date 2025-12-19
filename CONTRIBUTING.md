@@ -1,6 +1,6 @@
-# Contributing to Lynx
+# Contributing to Kaizen
 
-Thank you for your interest in contributing to Lynx! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to Kaizen! This document provides guidelines and information for contributors.
 
 ## Prerequisites
 
@@ -12,8 +12,8 @@ Thank you for your interest in contributing to Lynx! This document provides guid
 1. Fork the repository
 2. Clone your fork:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/lynx.git
-   cd lynx
+   git clone https://github.com/YOUR_USERNAME/kaizen.git
+   cd kaizen
    ```
 3. Set up the development environment:
    ```bash

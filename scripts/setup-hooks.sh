@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "Setting up Lynx development environment..."
+echo "Setting up Kaizen development environment..."
 
 # Check for pre-commit
 if ! command -v pre-commit &> /dev/null; then

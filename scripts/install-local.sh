@@ -2,9 +2,9 @@
 set -e
 
 INSTALL_DIR="${HOME}/.local/bin"
-BINARY_NAME="lynx-lsp"
+BINARY_NAME="kaizen-lsp"
 
-echo "Building Lynx LSP server..."
+echo "Building Kaizen LSP server..."
 
 # Get script directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,7 +13,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
 # Build in release mode
-cargo build --release -p lynx-lsp
+cargo build --release -p kaizen-lsp
 
 # Create install directory if needed
 mkdir -p "$INSTALL_DIR"
@@ -32,18 +32,18 @@ echo ""
 cat << 'EOF'
 {
   "lsp": {
-    "lynx-lsp": {
+    "kaizen-lsp": {
       "binary": {
-        "path": "~/.local/bin/lynx-lsp"
+        "path": "~/.local/bin/kaizen-lsp"
       }
     }
   },
   "languages": {
     "JavaScript": {
-      "language_servers": ["lynx-lsp", "..."]
+      "language_servers": ["kaizen-lsp", "..."]
     },
     "TypeScript": {
-      "language_servers": ["lynx-lsp", "..."]
+      "language_servers": ["kaizen-lsp", "..."]
     }
   }
 }

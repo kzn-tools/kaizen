@@ -1,13 +1,13 @@
-# Lynx
+# Kaizen
 
-[![CI](https://github.com/mpiton/lynx/actions/workflows/ci.yml/badge.svg)](https://github.com/mpiton/lynx/actions/workflows/ci.yml)
+[![CI](https://github.com/mpiton/kaizen/actions/workflows/ci.yml/badge.svg)](https://github.com/mpiton/kaizen/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Ultra-fast JavaScript/TypeScript static analyzer written in Rust.
 
-## What is Lynx?
+## What is Kaizen?
 
-Lynx is a modern static analysis tool designed for JavaScript and TypeScript codebases, providing:
+Kaizen is a modern static analysis tool designed for JavaScript and TypeScript codebases, providing:
 
 - Fast parsing using SWC
 - Semantic analysis and taint tracking
@@ -25,13 +25,13 @@ Lynx is a modern static analysis tool designed for JavaScript and TypeScript cod
 
 ```bash
 # Clone the repository
-git clone https://github.com/mpiton/lynx.git
-cd lynx
+git clone https://github.com/mpiton/kaizen.git
+cd kaizen
 
 # Build the project
 cargo build --release
 
-# The binary will be available at target/release/lynx-cli
+# The binary will be available at target/release/kaizen-cli
 ```
 
 ## Usage
@@ -42,25 +42,25 @@ Run static analysis on your JavaScript/TypeScript files:
 
 ```bash
 # Analyze a directory
-lynx check ./src
+kaizen check ./src
 
 # Analyze with JSON output
-lynx check ./src --format json
+kaizen check ./src --format json
 
 # Analyze specific files
-lynx check ./src/index.ts
+kaizen check ./src/index.ts
 ```
 
 ### Initialize Configuration
 
-Create a Lynx configuration file in your project:
+Create a Kaizen configuration file in your project:
 
 ```bash
 # Create default configuration
-lynx init
+kaizen init
 
 # Overwrite existing configuration
-lynx init --force
+kaizen init --force
 ```
 
 ### Get Rule Information
@@ -68,10 +68,10 @@ lynx init --force
 Display detailed explanation for a specific rule:
 
 ```bash
-lynx explain <rule-id>
+kaizen explain <rule-id>
 
 # Example
-lynx explain no-console
+kaizen explain no-console
 ```
 
 ## IDE Integration
@@ -79,7 +79,7 @@ lynx explain no-console
 ### Installing the LSP Server
 
 ```bash
-# Build and install lynx-lsp to ~/.local/bin
+# Build and install kaizen-lsp to ~/.local/bin
 chmod +x scripts/install-local.sh
 ./scripts/install-local.sh
 ```
@@ -92,7 +92,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ### Zed
 
-Install the Lynx extension as a dev extension:
+Install the Kaizen extension as a dev extension:
 
 1. Open Zed
 2. Open the Extensions panel (View → Extensions)
@@ -106,11 +106,11 @@ cd editors/zed
 cargo build --release --target wasm32-wasip1
 ```
 
-The extension will automatically find `lynx-lsp` from your PATH.
+The extension will automatically find `kaizen-lsp` from your PATH.
 
 ### VS Code
 
-Install the Lynx extension:
+Install the Kaizen extension:
 
 ```bash
 cd editors/vscode
@@ -121,13 +121,13 @@ npm run compile
 Then install in VS Code:
 1. Open VS Code
 2. Run "Extensions: Install from VSIX..." from Command Palette
-3. Or copy the folder to `~/.vscode/extensions/lynx-lsp`
+3. Or copy the folder to `~/.vscode/extensions/kaizen-lsp`
 
 Configure the LSP path if needed in VS Code settings:
 
 ```json
 {
-  "lynx.serverPath": "/home/youruser/.local/bin/lynx-lsp"
+  "kaizen.serverPath": "/home/youruser/.local/bin/kaizen-lsp"
 }
 ```
 
@@ -144,8 +144,8 @@ To verify the LSP is working:
 
 ```bash
 # Clone the repository
-git clone https://github.com/mpiton/lynx.git
-cd lynx
+git clone https://github.com/mpiton/kaizen.git
+cd kaizen
 
 # Setup development environment (installs pre-commit hooks)
 chmod +x scripts/setup-hooks.sh
@@ -161,11 +161,11 @@ cargo test
 ### Project Structure
 
 ```
-lynx/
+kaizen/
 ├── crates/
-│   ├── lynx-core/   # Core analysis engine
-│   ├── lynx-lsp/    # Language Server Protocol implementation
-│   └── lynx-cli/    # Command-line interface
+│   ├── kaizen-core/   # Core analysis engine
+│   ├── kaizen-lsp/    # Language Server Protocol implementation
+│   └── kaizen-cli/    # Command-line interface
 ├── editors/
 │   ├── vscode/      # VS Code extension
 │   └── zed/         # Zed extension
@@ -206,7 +206,7 @@ Contributions are welcome! Here's how to get started:
 ### Getting Started
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/lynx.git`
+2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/kaizen.git`
 3. Create a feature branch: `git checkout -b feature/your-feature`
 4. Set up the development environment (see [Development](#development))
 
@@ -226,7 +226,7 @@ Contributions are welcome! Here's how to get started:
 
 ### Reporting Issues
 
-Found a bug or have a feature request? [Open an issue](https://github.com/mpiton/lynx/issues/new) with:
+Found a bug or have a feature request? [Open an issue](https://github.com/mpiton/kaizen/issues/new) with:
 
 - Clear description of the problem or feature
 - Steps to reproduce (for bugs)

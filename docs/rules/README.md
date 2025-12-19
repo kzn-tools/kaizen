@@ -1,6 +1,6 @@
-# Lynx Rules Reference
+# Kaizen Rules Reference
 
-Comprehensive documentation for all Lynx linter rules. Use `lynx explain <rule-id>` or `lynx explain <rule-name>` to get rule details from the command line.
+Comprehensive documentation for all Kaizen linter rules. Use `kaizen explain <rule-id>` or `kaizen explain <rule-name>` to get rule details from the command line.
 
 ## Quick Links
 
@@ -80,7 +80,7 @@ Rules focused on detecting security vulnerabilities through taint analysis and p
 
 ### Disabling Rules
 
-In your `lynx.toml` configuration:
+In your `kaizen.toml` configuration:
 
 ```toml
 [rules]

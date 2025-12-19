@@ -1,6 +1,6 @@
 # Test Fixtures
 
-This directory contains test fixtures for Lynx parser integration tests.
+This directory contains test fixtures for Kaizen parser integration tests.
 
 ## Directory Structure
 
@@ -54,7 +54,7 @@ Include a comment at the top explaining what the fixture tests:
 ### 4. Run the tests
 
 ```bash
-cargo test --package lynx-core --test fixture_tests
+cargo test --package kaizen-core --test fixture_tests
 ```
 
 ## Snapshot Testing

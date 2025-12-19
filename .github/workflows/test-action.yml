@@ -5,15 +5,15 @@ on:
     branches: ["**"]
     paths:
       - 'action.yml'
-      - 'crates/lynx-cli/**'
-      - 'crates/lynx-core/**'
+      - 'crates/kaizen-cli/**'
+      - 'crates/kaizen-core/**'
       - '.github/workflows/test-action.yml'
   pull_request:
     branches: ["**"]
     paths:
       - 'action.yml'
-      - 'crates/lynx-cli/**'
-      - 'crates/lynx-core/**'
+      - 'crates/kaizen-cli/**'
+      - 'crates/kaizen-core/**'
       - '.github/workflows/test-action.yml'
 
 permissions:
@@ -22,14 +22,14 @@ permissions:
 
 jobs:
   test-action:
-    name: Test Lynx Action
+    name: Test Kaizen Action
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Lynx Action (default settings)
-        id: lynx-default
+      - name: Run Kaizen Action (default settings)
+        id: kaizen-default
         uses: ./
         with:
           path: 'tests/fixtures/'
@@ -37,42 +37,42 @@ jobs:
 
       - name: Verify SARIF output exists
         run: |
-          if [ ! -f "${{ steps.lynx-default.outputs.sarif-file }}" ]; then
+          if [ ! -f "${{ steps.kaizen-default.outputs.sarif-file }}" ]; then
             echo "::error::SARIF file not found"
             exit 1
           fi
-          echo "SARIF file generated at: ${{ steps.lynx-default.outputs.sarif-file }}"
-          echo "Exit code: ${{ steps.lynx-default.outputs.exit-code }}"
+          echo "SARIF file generated at: ${{ steps.kaizen-default.outputs.sarif-file }}"
+          echo "Exit code: ${{ steps.kaizen-default.outputs.exit-code }}"
 
       - name: Validate SARIF format
         run: |
-          SARIF_FILE="${{ steps.lynx-default.outputs.sarif-file }}"
+          SARIF_FILE="${{ steps.kaizen-default.outputs.sarif-file }}"
           # Check it's valid JSON with SARIF structure
           if ! jq -e '.version == "2.1.0"' "$SARIF_FILE" > /dev/null; then
             echo "::error::Invalid SARIF version"
             cat "$SARIF_FILE"
             exit 1
           fi
-          if ! jq -e '.runs[0].tool.driver.name == "Lynx"' "$SARIF_FILE" > /dev/null; then
+          if ! jq -e '.runs[0].tool.driver.name == "Kaizen"' "$SARIF_FILE" > /dev/null; then
             echo "::error::Invalid tool name in SARIF"
             exit 1
           fi
           echo "✓ SARIF format is valid"
 
   test-action-with-upload:
-    name: Test Lynx Action with SARIF Upload
+    name: Test Kaizen Action with SARIF Upload
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Lynx Action with SARIF upload
+      - name: Run Kaizen Action with SARIF upload
         uses: ./
         with:
           path: 'tests/fixtures/security/'
           severity: 'warning'
           sarif-upload: 'true'
-          sarif-category: 'lynx-security-test'
+          sarif-category: 'kaizen-security-test'
 
   test-action-severity:
     name: Test Severity Threshold
@@ -81,8 +81,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Lynx with error-only severity
-        id: lynx-errors
+      - name: Run Kaizen with error-only severity
+        id: kaizen-errors
         uses: ./
         with:
           path: 'tests/fixtures/'
@@ -91,4 +91,4 @@ jobs:
 
       - name: Verify exit code
         run: |
-          echo "Exit code: ${{ steps.lynx-errors.outputs.exit-code }}"
+          echo "Exit code: ${{ steps.kaizen-errors.outputs.exit-code }}"

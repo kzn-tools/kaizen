@@ -1,10 +1,10 @@
 use zed_extension_api::{self as zed, Result};
 
-struct LynxExtension;
+struct KaizenExtension;
 
-impl zed::Extension for LynxExtension {
+impl zed::Extension for KaizenExtension {
     fn new() -> Self {
-        LynxExtension
+        KaizenExtension
     }
 
     fn language_server_command(
@@ -12,8 +12,8 @@ impl zed::Extension for LynxExtension {
         _language_server_id: &zed::LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<zed::Command> {
-        let path = worktree.which("lynx-lsp").ok_or_else(|| {
-            "lynx-lsp not found in PATH. Install with: ./scripts/install-local.sh".to_string()
+        let path = worktree.which("kaizen-lsp").ok_or_else(|| {
+            "kaizen-lsp not found in PATH. Install with: ./scripts/install-local.sh".to_string()
         })?;
 
         Ok(zed::Command {
@@ -24,4 +24,4 @@ impl zed::Extension for LynxExtension {
     }
 }
 
-zed::register_extension!(LynxExtension);
+zed::register_extension!(KaizenExtension);
