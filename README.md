@@ -3,60 +3,81 @@
 [![CI](https://github.com/mpiton/kaizen/actions/workflows/ci.yml/badge.svg)](https://github.com/mpiton/kaizen/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Ultra-fast JavaScript/TypeScript static analyzer written in Rust.
+Ultra-fast JavaScript/TypeScript static analyzer written in Rust with security-focused rules and taint analysis.
 
-## What is Kaizen?
+## Features
 
-Kaizen is a modern static analysis tool designed for JavaScript and TypeScript codebases, providing:
+- **Fast**: Built with Rust and SWC for blazing-fast analysis
+- **Security-focused**: Detects SQL injection, XSS, command injection, and more via taint analysis
+- **Quality rules**: Unused code detection, complexity checks, modern JS patterns
+- **IDE support**: Language Server Protocol (LSP) for real-time diagnostics
+- **CI/CD ready**: GitHub Actions integration with SARIF output for Code Scanning
+- **Auto-fix**: Many rules support automatic fixes
 
-- Fast parsing using SWC
-- Semantic analysis and taint tracking
-- IDE integration via Language Server Protocol (LSP)
-- Command-line interface for CI/CD integration
+## Quick Start
+
+```bash
+# 1. Install
+cargo install kaizen-cli
+
+# 2. Initialize configuration (optional)
+kaizen init
+
+# 3. Analyze your code
+kaizen check ./src
+```
 
 ## Installation
 
-### Prerequisites
-
-- Rust 1.85.0+ (Edition 2024)
-- [pre-commit](https://pre-commit.com/) for git hooks (development only)
-
-### Building from Source
+### From crates.io (Recommended)
 
 ```bash
-# Clone the repository
+cargo install kaizen-cli
+```
+
+### From Source
+
+```bash
 git clone https://github.com/mpiton/kaizen.git
 cd kaizen
+cargo install --path crates/kaizen-cli
+```
 
-# Build the project
-cargo build --release
+### Verify Installation
 
-# The binary will be available at target/release/kaizen-cli
+```bash
+kaizen --version
+kaizen --help
 ```
 
 ## Usage
 
 ### Analyze Files
 
-Run static analysis on your JavaScript/TypeScript files:
-
 ```bash
 # Analyze a directory
 kaizen check ./src
 
-# Analyze with JSON output
-kaizen check ./src --format json
-
 # Analyze specific files
-kaizen check ./src/index.ts
+kaizen check ./src/index.ts ./src/utils.ts
+
+# Analyze with different output formats
+kaizen check ./src --format pretty    # Human-readable (default)
+kaizen check ./src --format json      # JSON for tooling
+kaizen check ./src --format sarif     # SARIF for GitHub Code Scanning
+
+# Filter by severity
+kaizen check ./src --severity error   # Only errors
+kaizen check ./src --severity warning # Errors and warnings
+
+# Fail on warnings (useful for CI)
+kaizen check ./src --fail-on-warnings
 ```
 
 ### Initialize Configuration
 
-Create a Kaizen configuration file in your project:
-
 ```bash
-# Create default configuration
+# Create kaizen.toml in current directory
 kaizen init
 
 # Overwrite existing configuration
@@ -65,172 +86,275 @@ kaizen init --force
 
 ### Get Rule Information
 
-Display detailed explanation for a specific rule:
+```bash
+# Show rule explanation
+kaizen explain no-console
+kaizen explain Q032  # By rule ID
+
+# List all available rules
+kaizen explain --list
+```
+
+## Configuration
+
+Create a `kaizen.toml` file in your project root:
+
+```toml
+# Include/exclude patterns
+include = ["src/**/*.ts", "src/**/*.js"]
+exclude = ["node_modules", "dist", "**/*.test.ts"]
+
+# Rule configuration
+[rules]
+# Disable specific rules
+disabled = ["no-console"]
+
+# Or disable by rule ID
+# disabled = ["Q032"]
+
+# Enable/disable rule categories
+quality = true
+security = true
+
+# Custom severity overrides
+[rules.severity]
+"no-console" = "error"     # Upgrade to error
+"no-unused-vars" = "hint"  # Downgrade to hint
+```
+
+### Example Configurations
+
+**Minimal (security only):**
+
+```toml
+[rules]
+quality = false
+security = true
+```
+
+**Strict mode:**
+
+```toml
+[rules]
+disabled = []
+
+[rules.severity]
+"no-console" = "error"
+"no-unused-vars" = "error"
+```
+
+**Library/package development:**
+
+```toml
+exclude = ["examples", "tests", "benchmarks"]
+
+[rules]
+disabled = ["no-console"]  # Allow console in examples
+```
+
+## CI/CD Integration
+
+### GitHub Actions
+
+Use the official Kaizen GitHub Action for seamless integration:
+
+```yaml
+name: Security Analysis
+
+on: [push, pull_request]
+
+jobs:
+  kaizen:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write  # Required for SARIF upload
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Kaizen
+        uses: mpiton/kaizen@main
+        with:
+          path: './src'
+          severity: 'warning'
+          sarif-upload: 'true'
+```
+
+**Action Options:**
+
+| Input | Description | Default |
+|-------|-------------|---------|
+| `path` | Path to analyze | `.` |
+| `severity` | Minimum severity (error, warning, info, hint) | `hint` |
+| `min-confidence` | Minimum confidence (high, medium, low) | `medium` |
+| `fail-on-warnings` | Exit with code 1 if warnings found | `false` |
+| `sarif-upload` | Upload SARIF to GitHub Code Scanning | `true` |
+| `sarif-category` | Category for SARIF results | `kaizen` |
+
+### GitLab CI
+
+```yaml
+kaizen:
+  image: rust:latest
+  script:
+    - cargo install kaizen-cli
+    - kaizen check ./src --fail-on-warnings
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+```
+
+### Generic CI
 
 ```bash
-kaizen explain <rule-id>
+#!/bin/bash
+set -e
 
-# Example
-kaizen explain no-console
+# Install
+cargo install kaizen-cli
+
+# Run analysis
+kaizen check ./src --fail-on-warnings
+
+# Or generate SARIF for upload
+kaizen check ./src --format sarif > results.sarif
 ```
+
+### Pre-commit Hook
+
+Add to `.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: local
+    hooks:
+      - id: kaizen
+        name: Kaizen
+        entry: kaizen check
+        language: system
+        types: [javascript, ts]
+        pass_filenames: true
+```
+
+## Rules
+
+Kaizen includes 21 built-in rules in two categories:
+
+### Quality Rules (14 rules)
+
+| Rule | Description | Auto-fix |
+|------|-------------|----------|
+| `no-unused-vars` | Detect unused variables | - |
+| `no-unused-imports` | Detect unused imports | ✓ |
+| `no-unreachable` | Detect unreachable code | - |
+| `max-complexity` | Enforce cyclomatic complexity limit | - |
+| `max-depth` | Enforce nesting depth limit | - |
+| `prefer-using` | Encourage `using` for disposables | ✓ |
+| `no-floating-promises` | Require Promise handling | ✓ |
+| `prefer-optional-chaining` | Suggest `?.` over `&&` | - |
+| `prefer-nullish-coalescing` | Suggest `??` over `\|\|` | - |
+| `no-var` | Disallow `var` declarations | ✓ |
+| `prefer-const` | Encourage `const` over `let` | ✓ |
+| `no-console` | Warn on console.* calls | - |
+| `eqeqeq` | Require strict equality | ✓ |
+| `no-eval` | Disallow eval() | - |
+
+### Security Rules (7 rules)
+
+| Rule | Description | Analysis |
+|------|-------------|----------|
+| `no-sql-injection` | Detect SQL injection | Taint |
+| `no-xss` | Detect XSS vulnerabilities | Taint |
+| `no-command-injection` | Detect command injection | Taint |
+| `no-eval-injection` | Detect code injection | Taint |
+| `no-hardcoded-secrets` | Detect hardcoded secrets | Pattern |
+| `no-weak-hashing` | Detect weak hash algorithms | Pattern |
+| `no-insecure-random` | Detect Math.random() misuse | Pattern |
+
+See [docs/rules/](docs/rules/) for detailed rule documentation.
 
 ## IDE Integration
 
-### Installing the LSP Server
+### VS Code
 
-```bash
-# Build and install kaizen-lsp to ~/.local/bin
-chmod +x scripts/install-local.sh
-./scripts/install-local.sh
-```
+1. Build and install the extension:
+   ```bash
+   cd editors/vscode
+   npm install
+   npm run compile
+   ```
 
-Make sure `~/.local/bin` is in your PATH:
+2. Install in VS Code:
+   - Copy folder to `~/.vscode/extensions/kaizen-lsp`
+   - Or use "Extensions: Install from VSIX..."
 
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-```
+3. Configure (optional):
+   ```json
+   {
+     "kaizen.serverPath": "~/.local/bin/kaizen-lsp"
+   }
+   ```
 
 ### Zed
 
-Install the Kaizen extension as a dev extension:
+1. Install the extension:
+   - Open Zed → Extensions
+   - Click "Install Dev Extension"
+   - Select `editors/zed` directory
 
-1. Open Zed
-2. Open the Extensions panel (View → Extensions)
-3. Click "Install Dev Extension"
-4. Select the `editors/zed` directory from this repository
+2. Or build manually:
+   ```bash
+   cd editors/zed
+   cargo build --release --target wasm32-wasip1
+   ```
 
-Or build and install manually:
+### LSP Server Setup
 
-```bash
-cd editors/zed
-cargo build --release --target wasm32-wasip1
-```
-
-The extension will automatically find `kaizen-lsp` from your PATH.
-
-### VS Code
-
-Install the Kaizen extension:
+For other editors, install the LSP server:
 
 ```bash
-cd editors/vscode
-npm install
-npm run compile
-```
+# Install to ~/.local/bin
+./scripts/install-local.sh
 
-Then install in VS Code:
-1. Open VS Code
-2. Run "Extensions: Install from VSIX..." from Command Palette
-3. Or copy the folder to `~/.vscode/extensions/kaizen-lsp`
-
-Configure the LSP path if needed in VS Code settings:
-
-```json
-{
-  "kaizen.serverPath": "/home/youruser/.local/bin/kaizen-lsp"
-}
-```
-
-### Verify Installation
-
-To verify the LSP is working:
-1. Open a JavaScript or TypeScript file
-2. Introduce a syntax error (e.g., `const x = `)
-3. The error should be underlined in red
-
-## Development
-
-### Quick Start
-
-```bash
-# Clone the repository
-git clone https://github.com/mpiton/kaizen.git
-cd kaizen
-
-# Setup development environment (installs pre-commit hooks)
-chmod +x scripts/setup-hooks.sh
-./scripts/setup-hooks.sh
-
-# Build the project
-cargo build
-
-# Run tests
-cargo test
-```
-
-### Project Structure
-
-```
-kaizen/
-├── crates/
-│   ├── kaizen-core/   # Core analysis engine
-│   ├── kaizen-lsp/    # Language Server Protocol implementation
-│   └── kaizen-cli/    # Command-line interface
-├── editors/
-│   ├── vscode/      # VS Code extension
-│   └── zed/         # Zed extension
-└── scripts/         # Development utilities
-```
-
-### Cargo Aliases
-
-The project provides convenient cargo aliases:
-
-| Alias      | Command                                           |
-|------------|---------------------------------------------------|
-| `cargo b`  | `cargo build`                                     |
-| `cargo c`  | `cargo check`                                     |
-| `cargo t`  | `cargo test`                                      |
-| `cargo cl` | `cargo clippy --workspace --all-targets -D warnings` |
-| `cargo r`  | `cargo run`                                       |
-| `cargo d`  | `cargo doc --no-deps --open`                      |
-
-### Pre-commit Hooks
-
-Pre-commit hooks run automatically before each commit:
-
-- **Format check**: Ensures code is formatted with `rustfmt`
-- **Clippy**: Catches common mistakes and enforces best practices
-- **File hygiene**: Trailing whitespace, EOF newlines, YAML/TOML validation
-
-To run hooks manually:
-
-```bash
-pre-commit run --all-files
+# Ensure PATH includes ~/.local/bin
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 ## Contributing
 
-Contributions are welcome! Here's how to get started:
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-### Getting Started
+**Quick setup:**
 
-1. Fork the repository
-2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/kaizen.git`
-3. Create a feature branch: `git checkout -b feature/your-feature`
-4. Set up the development environment (see [Development](#development))
+```bash
+git clone https://github.com/YOUR_USERNAME/kaizen.git
+cd kaizen
+./scripts/setup-hooks.sh  # Install pre-commit hooks
+cargo build
+cargo test
+```
 
-### Code Style
+**Before submitting:**
 
-- Follow Rust conventions and idioms
-- Run `cargo fmt` before committing
-- Ensure `cargo clippy` passes without warnings
-- Write tests for new functionality
+```bash
+cargo fmt --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+```
 
-### Submitting Changes
+## Project Structure
 
-1. Ensure all tests pass: `cargo test`
-2. Ensure code is formatted: `cargo fmt --check`
-3. Ensure no clippy warnings: `cargo clippy --workspace --all-targets -- -D warnings`
-4. Push to your fork and submit a Pull Request
-
-### Reporting Issues
-
-Found a bug or have a feature request? [Open an issue](https://github.com/mpiton/kaizen/issues/new) with:
-
-- Clear description of the problem or feature
-- Steps to reproduce (for bugs)
-- Expected vs actual behavior
+```
+kaizen/
+├── crates/
+│   ├── kaizen-core/   # Analysis engine, rules, taint tracking
+│   ├── kaizen-cli/    # Command-line interface
+│   └── kaizen-lsp/    # Language Server Protocol
+├── editors/
+│   ├── vscode/        # VS Code extension
+│   └── zed/           # Zed extension
+├── docs/
+│   └── rules/         # Rule documentation
+└── scripts/           # Development utilities
+```
 
 ## License
 
