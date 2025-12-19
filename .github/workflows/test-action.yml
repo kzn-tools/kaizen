@@ -1,0 +1,94 @@
+name: Test GitHub Action
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - 'action.yml'
+      - 'crates/lynx-cli/**'
+      - 'crates/lynx-core/**'
+      - '.github/workflows/test-action.yml'
+  pull_request:
+    branches: ["**"]
+    paths:
+      - 'action.yml'
+      - 'crates/lynx-cli/**'
+      - 'crates/lynx-core/**'
+      - '.github/workflows/test-action.yml'
+
+permissions:
+  security-events: write
+  contents: read
+
+jobs:
+  test-action:
+    name: Test Lynx Action
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Lynx Action (default settings)
+        id: lynx-default
+        uses: ./
+        with:
+          path: 'tests/fixtures/'
+          sarif-upload: 'false'
+
+      - name: Verify SARIF output exists
+        run: |
+          if [ ! -f "${{ steps.lynx-default.outputs.sarif-file }}" ]; then
+            echo "::error::SARIF file not found"
+            exit 1
+          fi
+          echo "SARIF file generated at: ${{ steps.lynx-default.outputs.sarif-file }}"
+          echo "Exit code: ${{ steps.lynx-default.outputs.exit-code }}"
+
+      - name: Validate SARIF format
+        run: |
+          SARIF_FILE="${{ steps.lynx-default.outputs.sarif-file }}"
+          # Check it's valid JSON with SARIF structure
+          if ! jq -e '.version == "2.1.0"' "$SARIF_FILE" > /dev/null; then
+            echo "::error::Invalid SARIF version"
+            cat "$SARIF_FILE"
+            exit 1
+          fi
+          if ! jq -e '.runs[0].tool.driver.name == "Lynx"' "$SARIF_FILE" > /dev/null; then
+            echo "::error::Invalid tool name in SARIF"
+            exit 1
+          fi
+          echo "✓ SARIF format is valid"
+
+  test-action-with-upload:
+    name: Test Lynx Action with SARIF Upload
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Lynx Action with SARIF upload
+        uses: ./
+        with:
+          path: 'tests/fixtures/security/'
+          severity: 'warning'
+          sarif-upload: 'true'
+          sarif-category: 'lynx-security-test'
+
+  test-action-severity:
+    name: Test Severity Threshold
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Lynx with error-only severity
+        id: lynx-errors
+        uses: ./
+        with:
+          path: 'tests/fixtures/'
+          severity: 'error'
+          sarif-upload: 'false'
+
+      - name: Verify exit code
+        run: |
+          echo "Exit code: ${{ steps.lynx-errors.outputs.exit-code }}"

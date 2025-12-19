@@ -1,0 +1,128 @@
+name: 'Lynx Security Scanner'
+author: 'mpiton'
+description: 'Ultra-fast JavaScript/TypeScript static analyzer with security focus'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  path:
+    description: 'Path to file or directory to analyze'
+    required: false
+    default: '.'
+  severity:
+    description: 'Minimum severity level to report (error, warning, info, hint)'
+    required: false
+    default: 'hint'
+  min-confidence:
+    description: 'Minimum confidence level (high, medium, low)'
+    required: false
+    default: 'medium'
+  fail-on-warnings:
+    description: 'Exit with code 1 if warnings are found'
+    required: false
+    default: 'false'
+  sarif-upload:
+    description: 'Upload SARIF results to GitHub Code Scanning'
+    required: false
+    default: 'true'
+  sarif-category:
+    description: 'Category for SARIF results (for distinguishing multiple analyses)'
+    required: false
+    default: 'lynx'
+  github-token:
+    description: 'GitHub token for SARIF upload (required if sarif-upload is true)'
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  sarif-file:
+    description: 'Path to the generated SARIF file'
+    value: ${{ steps.analyze.outputs.sarif-file }}
+  exit-code:
+    description: 'Exit code from lynx analysis (0 = no issues, 1 = issues found)'
+    value: ${{ steps.analyze.outputs.exit-code }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache Rust build
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: ${{ github.action_path }} -> target
+        cache-on-failure: true
+
+    - name: Build lynx-cli
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        cargo build --release --package lynx-cli
+        echo "LYNX_BIN=${{ github.action_path }}/target/release/lynx-cli" >> $GITHUB_ENV
+
+    - name: Run Lynx analysis
+      id: analyze
+      shell: bash
+      run: |
+        mkdir -p ${{ runner.temp }}/lynx-results
+        SARIF_FILE="${{ runner.temp }}/lynx-results/lynx.sarif"
+
+        # Build command arguments
+        ARGS="check"
+        ARGS="$ARGS --format sarif"
+
+        if [ "${{ inputs.severity }}" != "hint" ]; then
+          ARGS="$ARGS --severity ${{ inputs.severity }}"
+        fi
+
+        ARGS="$ARGS --min-confidence ${{ inputs.min-confidence }}"
+
+        if [ "${{ inputs.fail-on-warnings }}" = "true" ]; then
+          ARGS="$ARGS --fail-on-warnings"
+        fi
+
+        ARGS="$ARGS ${{ inputs.path }}"
+
+        # Run analysis and capture exit code
+        set +e
+        $LYNX_BIN $ARGS > "$SARIF_FILE" 2>&1
+        EXIT_CODE=$?
+        set -e
+
+        # Validate SARIF output
+        if [ ! -s "$SARIF_FILE" ] || ! head -1 "$SARIF_FILE" | grep -q '^\s*{'; then
+          echo "::warning::SARIF output may be invalid, regenerating..."
+          $LYNX_BIN check --format sarif ${{ inputs.path }} > "$SARIF_FILE" 2>/dev/null || true
+        fi
+
+        echo "sarif-file=$SARIF_FILE" >> $GITHUB_OUTPUT
+        echo "exit-code=$EXIT_CODE" >> $GITHUB_OUTPUT
+
+        # Count findings for summary
+        FINDINGS=$(grep -c '"ruleId"' "$SARIF_FILE" 2>/dev/null || echo "0")
+        echo "### Lynx Analysis Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Path analyzed:** \`${{ inputs.path }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Findings:** $FINDINGS" >> $GITHUB_STEP_SUMMARY
+        echo "- **Severity threshold:** ${{ inputs.severity }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Confidence threshold:** ${{ inputs.min-confidence }}" >> $GITHUB_STEP_SUMMARY
+
+    - name: Upload SARIF to GitHub Code Scanning
+      if: inputs.sarif-upload == 'true' && always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ steps.analyze.outputs.sarif-file }}
+        category: ${{ inputs.sarif-category }}
+        wait-for-processing: true
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+
+    - name: Check for failures
+      if: inputs.fail-on-warnings == 'true' && steps.analyze.outputs.exit-code != '0'
+      shell: bash
+      run: |
+        echo "::error::Lynx found issues above the configured threshold"
+        exit 1
