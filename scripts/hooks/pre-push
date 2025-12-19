@@ -1,0 +1,87 @@
+#!/bin/bash
+# .git/hooks/pre-push
+# Review automatique avant chaque push avec Claude Code
+#
+# Installation:
+#   cp scripts/hooks/pre-push .git/hooks/
+#   chmod +x .git/hooks/pre-push
+
+set -e
+
+# Colors
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Check if claude is available
+if ! command -v claude &> /dev/null; then
+    echo -e "${YELLOW}⚠ Claude Code not found, skipping review${NC}"
+    exit 0
+fi
+
+# Get the remote and branch being pushed
+remote="$1"
+url="$2"
+
+# Read stdin for refs being pushed
+while read local_ref local_sha remote_ref remote_sha; do
+    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+        # Branch is being deleted
+        continue
+    fi
+
+    # Get changed Rust files
+    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+        # New branch - compare with main
+        changed_files=$(git diff --name-only main...HEAD | grep '\.rs$' || true)
+    else
+        changed_files=$(git diff --name-only "$remote_sha...$local_sha" | grep '\.rs$' || true)
+    fi
+
+    if [ -z "$changed_files" ]; then
+        echo -e "${GREEN}✓ No Rust files changed, skipping review${NC}"
+        exit 0
+    fi
+
+    echo -e "${BLUE}🔍 Running Claude quick review on: ${changed_files}${NC}"
+
+    # Get the diff
+    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+        diff_content=$(git diff main...HEAD -- $changed_files)
+    else
+        diff_content=$(git diff "$remote_sha...$local_sha" -- $changed_files)
+    fi
+
+    # Quick review - only check for critical issues
+    review=$(claude -p "Quick review pour Kaizen. Vérifie UNIQUEMENT les problèmes critiques:
+- unwrap()/expect() dans code library (pas CLI/tests)
+- std::fs dans code LSP (doit être tokio::fs)
+- unsafe sans justification
+
+Diff:
+\`\`\`diff
+$diff_content
+\`\`\`
+
+Réponds en JSON:
+{\"critical\": [{\"file\": \"...\", \"line\": N, \"issue\": \"...\"}], \"ok\": true/false}
+
+Si aucun problème critique: {\"critical\": [], \"ok\": true}" 2>/dev/null || echo '{"critical": [], "ok": true}')
+
+    # Parse result
+    if echo "$review" | grep -q '"ok": false'; then
+        echo -e "${RED}❌ Problèmes critiques détectés:${NC}"
+        echo "$review" | grep -o '"issue": "[^"]*"' | sed 's/"issue": "//g' | sed 's/"//g' | while read issue; do
+            echo -e "  ${RED}• $issue${NC}"
+        done
+        echo
+        echo -e "${YELLOW}Push annulé. Corrige les problèmes ou utilise --no-verify pour forcer.${NC}"
+        exit 1
+    else
+        echo -e "${GREEN}✓ Quick review OK${NC}"
+    fi
+done
+
+exit 0

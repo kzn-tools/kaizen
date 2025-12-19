@@ -1,4 +1,4 @@
-name: 'Lynx Security Scanner'
+name: 'Kaizen Security Scanner'
 author: 'mpiton'
 description: 'Ultra-fast JavaScript/TypeScript static analyzer with security focus'
 
@@ -30,7 +30,7 @@ inputs:
   sarif-category:
     description: 'Category for SARIF results (for distinguishing multiple analyses)'
     required: false
-    default: 'lynx'
+    default: 'kaizen'
   github-token:
     description: 'GitHub token for SARIF upload (required if sarif-upload is true)'
     required: false
@@ -41,7 +41,7 @@ outputs:
     description: 'Path to the generated SARIF file'
     value: ${{ steps.analyze.outputs.sarif-file }}
   exit-code:
-    description: 'Exit code from lynx analysis (0 = no issues, 1 = issues found)'
+    description: 'Exit code from kaizen analysis (0 = no issues, 1 = issues found)'
     value: ${{ steps.analyze.outputs.exit-code }}
 
 runs:
@@ -56,19 +56,19 @@ runs:
         workspaces: ${{ github.action_path }} -> target
         cache-on-failure: true
 
-    - name: Build lynx-cli
+    - name: Build kaizen-cli
       shell: bash
       working-directory: ${{ github.action_path }}
       run: |
-        cargo build --release --package lynx-cli
-        echo "LYNX_BIN=${{ github.action_path }}/target/release/lynx-cli" >> $GITHUB_ENV
+        cargo build --release --package kaizen-cli
+        echo "KAIZEN_BIN=${{ github.action_path }}/target/release/kaizen-cli" >> $GITHUB_ENV
 
-    - name: Run Lynx analysis
+    - name: Run Kaizen analysis
       id: analyze
       shell: bash
       run: |
-        mkdir -p ${{ runner.temp }}/lynx-results
-        SARIF_FILE="${{ runner.temp }}/lynx-results/lynx.sarif"
+        mkdir -p ${{ runner.temp }}/kaizen-results
+        SARIF_FILE="${{ runner.temp }}/kaizen-results/kaizen.sarif"
 
         # Build command arguments
         ARGS="check"
@@ -88,14 +88,14 @@ runs:
 
         # Run analysis and capture exit code
         set +e
-        $LYNX_BIN $ARGS > "$SARIF_FILE" 2>&1
+        $KAIZEN_BIN $ARGS > "$SARIF_FILE" 2>&1
         EXIT_CODE=$?
         set -e
 
         # Validate SARIF output
         if [ ! -s "$SARIF_FILE" ] || ! head -1 "$SARIF_FILE" | grep -q '^\s*{'; then
           echo "::warning::SARIF output may be invalid, regenerating..."
-          $LYNX_BIN check --format sarif ${{ inputs.path }} > "$SARIF_FILE" 2>/dev/null || true
+          $KAIZEN_BIN check --format sarif ${{ inputs.path }} > "$SARIF_FILE" 2>/dev/null || true
         fi
 
         echo "sarif-file=$SARIF_FILE" >> $GITHUB_OUTPUT
@@ -103,7 +103,7 @@ runs:
 
         # Count findings for summary
         FINDINGS=$(grep -c '"ruleId"' "$SARIF_FILE" 2>/dev/null || echo "0")
-        echo "### Lynx Analysis Results" >> $GITHUB_STEP_SUMMARY
+        echo "### Kaizen Analysis Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "- **Path analyzed:** \`${{ inputs.path }}\`" >> $GITHUB_STEP_SUMMARY
         echo "- **Findings:** $FINDINGS" >> $GITHUB_STEP_SUMMARY
@@ -124,5 +124,5 @@ runs:
       if: inputs.fail-on-warnings == 'true' && steps.analyze.outputs.exit-code != '0'
       shell: bash
       run: |
-        echo "::error::Lynx found issues above the configured threshold"
+        echo "::error::Kaizen found issues above the configured threshold"
         exit 1

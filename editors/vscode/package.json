@@ -1,13 +1,13 @@
 {
-  "name": "lynx-lsp",
-  "displayName": "Lynx",
+  "name": "kaizen-lsp",
+  "displayName": "Kaizen",
   "description": "Ultra-fast JavaScript/TypeScript static analyzer",
   "version": "0.1.0",
   "publisher": "mpiton",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mpiton/lynx"
+    "url": "https://github.com/mpiton/kaizen"
   },
   "engines": {
     "vscode": "^1.75.0"
@@ -26,12 +26,12 @@
   "contributes": {
     "configuration": {
       "type": "object",
-      "title": "Lynx",
+      "title": "Kaizen",
       "properties": {
-        "lynx.serverPath": {
+        "kaizen.serverPath": {
           "type": "string",
           "default": "",
-          "description": "Path to the lynx-lsp binary. If empty, uses 'lynx-lsp' from PATH."
+          "description": "Path to the kaizen-lsp binary. If empty, uses 'kaizen-lsp' from PATH."
         }
       }
     }

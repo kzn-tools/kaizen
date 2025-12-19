@@ -9,8 +9,8 @@ import {
 let client: LanguageClient;
 
 export function activate(context: ExtensionContext) {
-  const config = workspace.getConfiguration('lynx');
-  const serverPath = config.get<string>('serverPath') || 'lynx-lsp';
+  const config = workspace.getConfiguration('kaizen');
+  const serverPath = config.get<string>('serverPath') || 'kaizen-lsp';
 
   const serverOptions: ServerOptions = {
     run: {
@@ -36,8 +36,8 @@ export function activate(context: ExtensionContext) {
   };
 
   client = new LanguageClient(
-    'lynx-lsp',
-    'Lynx Language Server',
+    'kaizen-lsp',
+    'Kaizen Language Server',
     serverOptions,
     clientOptions
   );

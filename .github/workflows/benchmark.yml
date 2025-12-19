@@ -25,7 +25,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Run benchmarks
-        run: cargo bench --package lynx-core 2>&1 | tee output.txt
+        run: cargo bench --package kaizen-core 2>&1 | tee output.txt
 
       - name: Parse criterion output
         run: |
@@ -71,7 +71,7 @@ jobs:
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
         with:
-          name: Lynx Benchmarks
+          name: Kaizen Benchmarks
           tool: "customSmallerIsBetter"
           output-file-path: benchmark-results.json
           github-token: ${{ secrets.GITHUB_TOKEN }}

@@ -831,6 +831,60 @@ dependencies = [
 ]
 
 [[package]]
+name = "kaizen-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "colored",
+ "kaizen-core",
+ "rayon",
+ "serde",
+ "serde_json",
+ "serial_test",
+ "tempfile",
+ "toml",
+ "tracing",
+ "walkdir",
+]
+
+[[package]]
+name = "kaizen-core"
+version = "0.1.0"
+dependencies = [
+ "criterion",
+ "id-arena",
+ "insta",
+ "regex",
+ "serde",
+ "serde_json",
+ "swc_common",
+ "swc_ecma_ast",
+ "swc_ecma_parser",
+ "swc_ecma_visit",
+ "tempfile",
+ "thiserror",
+ "toml",
+ "tracing",
+]
+
+[[package]]
+name = "kaizen-lsp"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "dashmap 6.1.0",
+ "kaizen-core",
+ "serde",
+ "thiserror",
+ "tokio",
+ "tower-lsp",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -880,60 +934,6 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "url",
-]
-
-[[package]]
-name = "lynx-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "colored",
- "lynx-core",
- "rayon",
- "serde",
- "serde_json",
- "serial_test",
- "tempfile",
- "toml",
- "tracing",
- "walkdir",
-]
-
-[[package]]
-name = "lynx-core"
-version = "0.1.0"
-dependencies = [
- "criterion",
- "id-arena",
- "insta",
- "regex",
- "serde",
- "serde_json",
- "swc_common",
- "swc_ecma_ast",
- "swc_ecma_parser",
- "swc_ecma_visit",
- "tempfile",
- "thiserror",
- "toml",
- "tracing",
-]
-
-[[package]]
-name = "lynx-lsp"
-version = "0.1.0"
-dependencies = [
- "clap",
- "dashmap 6.1.0",
- "lynx-core",
- "serde",
- "thiserror",
- "tokio",
- "tower-lsp",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
 ]
 
 [[package]]
