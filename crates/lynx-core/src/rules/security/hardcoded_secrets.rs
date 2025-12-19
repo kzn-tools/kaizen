@@ -1,6 +1,7 @@
 //! no-hardcoded-secrets rule (S010): Detects hardcoded secrets in code
 
 use std::ops::ControlFlow;
+use std::sync::LazyLock;
 
 use regex::Regex;
 use swc_ecma_ast::{Expr, Lit, MemberExpr, MemberProp, Pat, VarDecl};
@@ -28,66 +29,61 @@ struct SecretPattern {
     description: &'static str,
 }
 
-impl SecretPattern {
-    fn new(name: &'static str, pattern: &str, description: &'static str) -> Self {
-        Self {
-            name,
-            regex: Regex::new(pattern).expect("Invalid regex pattern"),
-            description,
-        }
-    }
-}
-
-fn get_secret_patterns() -> Vec<SecretPattern> {
+static SECRET_PATTERNS: LazyLock<Vec<SecretPattern>> = LazyLock::new(|| {
     vec![
-        SecretPattern::new("AWS Access Key", r"^AKIA[0-9A-Z]{16}$", "AWS Access Key ID"),
-        SecretPattern::new(
-            "Stripe Live Key",
-            r"^sk_live_[0-9a-zA-Z]{24,}$",
-            "Stripe Live Secret Key",
-        ),
-        SecretPattern::new(
-            "Stripe Test Key",
-            r"^sk_test_[0-9a-zA-Z]{24,}$",
-            "Stripe Test Secret Key",
-        ),
-        SecretPattern::new(
-            "GitHub Personal Access Token",
-            r"^ghp_[A-Za-z0-9]{36}$",
-            "GitHub Personal Access Token",
-        ),
-        SecretPattern::new(
-            "GitHub OAuth Token",
-            r"^gho_[A-Za-z0-9]{36}$",
-            "GitHub OAuth Access Token",
-        ),
-        SecretPattern::new(
-            "GitHub User Token",
-            r"^ghu_[A-Za-z0-9]{36}$",
-            "GitHub User-to-Server Token",
-        ),
-        SecretPattern::new(
-            "GitHub Server Token",
-            r"^ghs_[A-Za-z0-9]{36}$",
-            "GitHub Server-to-Server Token",
-        ),
-        SecretPattern::new(
-            "GitHub Refresh Token",
-            r"^ghr_[A-Za-z0-9]{36}$",
-            "GitHub Refresh Token",
-        ),
-        SecretPattern::new(
-            "Slack Token",
-            r"^xox[baprs]-[0-9]{10,13}-[0-9]{10,13}[a-zA-Z0-9-]*$",
-            "Slack API Token",
-        ),
-        SecretPattern::new(
-            "Google API Key",
-            r"^AIza[0-9A-Za-z\-_]{35}$",
-            "Google API Key",
-        ),
+        SecretPattern {
+            name: "AWS Access Key",
+            regex: Regex::new(r"^AKIA[0-9A-Z]{16}$").expect("Invalid regex pattern"),
+            description: "AWS Access Key ID",
+        },
+        SecretPattern {
+            name: "Stripe Live Key",
+            regex: Regex::new(r"^sk_live_[0-9a-zA-Z]{24,}$").expect("Invalid regex pattern"),
+            description: "Stripe Live Secret Key",
+        },
+        SecretPattern {
+            name: "Stripe Test Key",
+            regex: Regex::new(r"^sk_test_[0-9a-zA-Z]{24,}$").expect("Invalid regex pattern"),
+            description: "Stripe Test Secret Key",
+        },
+        SecretPattern {
+            name: "GitHub Personal Access Token",
+            regex: Regex::new(r"^ghp_[A-Za-z0-9]{36}$").expect("Invalid regex pattern"),
+            description: "GitHub Personal Access Token",
+        },
+        SecretPattern {
+            name: "GitHub OAuth Token",
+            regex: Regex::new(r"^gho_[A-Za-z0-9]{36}$").expect("Invalid regex pattern"),
+            description: "GitHub OAuth Access Token",
+        },
+        SecretPattern {
+            name: "GitHub User Token",
+            regex: Regex::new(r"^ghu_[A-Za-z0-9]{36}$").expect("Invalid regex pattern"),
+            description: "GitHub User-to-Server Token",
+        },
+        SecretPattern {
+            name: "GitHub Server Token",
+            regex: Regex::new(r"^ghs_[A-Za-z0-9]{36}$").expect("Invalid regex pattern"),
+            description: "GitHub Server-to-Server Token",
+        },
+        SecretPattern {
+            name: "GitHub Refresh Token",
+            regex: Regex::new(r"^ghr_[A-Za-z0-9]{36}$").expect("Invalid regex pattern"),
+            description: "GitHub Refresh Token",
+        },
+        SecretPattern {
+            name: "Slack Token",
+            regex: Regex::new(r"^xox[baprs]-[0-9]{10,13}-[0-9]{10,13}[a-zA-Z0-9-]*$")
+                .expect("Invalid regex pattern"),
+            description: "Slack API Token",
+        },
+        SecretPattern {
+            name: "Google API Key",
+            regex: Regex::new(r"^AIza[0-9A-Za-z\-_]{35}$").expect("Invalid regex pattern"),
+            description: "Google API Key",
+        },
     ]
-}
+});
 
 fn is_sensitive_variable_name(name: &str) -> bool {
     let lower = name.to_lowercase();
@@ -230,12 +226,11 @@ impl Rule for HardcodedSecrets {
         };
 
         let ctx = VisitorContext::new(file);
-        let patterns = get_secret_patterns();
         let mut visitor = HardcodedSecretsVisitor {
             diagnostics: Vec::new(),
             file_path: file.metadata().filename.clone(),
             ctx: &ctx,
-            patterns: &patterns,
+            patterns: &SECRET_PATTERNS,
         };
 
         walk_ast(module, &mut visitor, &ctx);
@@ -358,8 +353,7 @@ mod tests {
 
     #[test]
     fn detects_stripe_live_key() {
-        let patterns = get_secret_patterns();
-        let stripe_pattern = patterns
+        let stripe_pattern = SECRET_PATTERNS
             .iter()
             .find(|p| p.name == "Stripe Live Key")
             .unwrap();
@@ -379,8 +373,7 @@ mod tests {
 
     #[test]
     fn detects_stripe_test_key() {
-        let patterns = get_secret_patterns();
-        let stripe_pattern = patterns
+        let stripe_pattern = SECRET_PATTERNS
             .iter()
             .find(|p| p.name == "Stripe Test Key")
             .unwrap();
