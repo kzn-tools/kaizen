@@ -5,8 +5,10 @@ use clap::{Args, ValueEnum};
 use colored::Colorize;
 use lynx_core::config::CONFIG_FILENAME;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
+
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 
 const DEFAULT_CONFIG: &str = r#"# Lynx configuration file
 # See https://github.com/mpiton/lynx for documentation
