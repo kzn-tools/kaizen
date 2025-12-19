@@ -8,7 +8,7 @@ use lynx_core::analysis::AnalysisEngine;
 use lynx_core::config::load_config_or_default_with_warnings;
 use lynx_core::diagnostic::Diagnostic;
 use lynx_core::parser::ParsedFile;
-use lynx_core::rules::Severity;
+use lynx_core::rules::{Confidence, Severity};
 use rayon::prelude::*;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -37,6 +37,10 @@ pub struct CheckArgs {
     #[arg(long, value_name = "LEVEL")]
     pub severity: Option<String>,
 
+    /// Filter diagnostics by minimum confidence level (high, medium, low)
+    #[arg(long, value_name = "LEVEL", default_value = "medium")]
+    pub min_confidence: String,
+
     /// Disable colored output
     #[arg(long)]
     pub no_color: bool,
@@ -46,6 +50,7 @@ pub struct CheckArgs {
 struct JsonDiagnostic {
     rule_id: String,
     severity: String,
+    confidence: String,
     message: String,
     file: String,
     line: usize,
@@ -60,6 +65,7 @@ impl From<&Diagnostic> for JsonDiagnostic {
         Self {
             rule_id: d.rule_id.clone(),
             severity: format!("{:?}", d.severity).to_lowercase(),
+            confidence: format!("{:?}", d.confidence).to_lowercase(),
             message: d.message.clone(),
             file: d.file.clone(),
             line: d.line,
@@ -90,6 +96,7 @@ impl CheckArgs {
 
         let engine = AnalysisEngine::with_config(&config);
         let min_severity = self.parse_severity()?;
+        let min_confidence = self.parse_confidence()?;
 
         let results: Vec<(PathBuf, String, Vec<Diagnostic>)> = files
             .par_iter()
@@ -110,6 +117,7 @@ impl CheckArgs {
             .into_iter()
             .flat_map(|(_, _, diags)| diags)
             .filter(|d| severity_level(&d.severity) >= severity_level(&min_severity))
+            .filter(|d| d.confidence.level() >= min_confidence.level())
             .collect();
 
         let error_count = all_diagnostics
@@ -148,6 +156,18 @@ impl CheckArgs {
                 other
             ),
             None => Ok(Severity::Hint),
+        }
+    }
+
+    fn parse_confidence(&self) -> Result<Confidence> {
+        match self.min_confidence.as_str() {
+            "high" => Ok(Confidence::High),
+            "medium" => Ok(Confidence::Medium),
+            "low" => Ok(Confidence::Low),
+            other => anyhow::bail!(
+                "Invalid confidence '{}'. Valid values: high, medium, low",
+                other
+            ),
         }
     }
 
@@ -382,6 +402,7 @@ mod tests {
             format: "pretty".to_string(),
             fail_on_warnings: false,
             severity: Some("error".to_string()),
+            min_confidence: "medium".to_string(),
             no_color: false,
         };
 
@@ -395,10 +416,39 @@ mod tests {
             format: "pretty".to_string(),
             fail_on_warnings: false,
             severity: Some("invalid".to_string()),
+            min_confidence: "medium".to_string(),
             no_color: false,
         };
 
         assert!(args.parse_severity().is_err());
+    }
+
+    #[test]
+    fn check_args_parse_confidence_valid() {
+        let args = CheckArgs {
+            path: PathBuf::from("."),
+            format: "pretty".to_string(),
+            fail_on_warnings: false,
+            severity: None,
+            min_confidence: "high".to_string(),
+            no_color: false,
+        };
+
+        assert!(matches!(args.parse_confidence().unwrap(), Confidence::High));
+    }
+
+    #[test]
+    fn check_args_parse_confidence_invalid() {
+        let args = CheckArgs {
+            path: PathBuf::from("."),
+            format: "pretty".to_string(),
+            fail_on_warnings: false,
+            severity: None,
+            min_confidence: "invalid".to_string(),
+            no_color: false,
+        };
+
+        assert!(args.parse_confidence().is_err());
     }
 
     #[test]
@@ -413,6 +463,7 @@ mod tests {
             format: "json".to_string(),
             fail_on_warnings: false,
             severity: None,
+            min_confidence: "medium".to_string(),
             no_color: false,
         };
 
