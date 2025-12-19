@@ -1,0 +1,125 @@
+---
+source: crates/lynx-core/tests/semantic_tests.rs
+expression: snapshot
+---
+{
+  "scope_count": 7,
+  "scopes": [
+    {
+      "kind": "Global",
+      "children_count": 2,
+      "has_parent": false
+    },
+    {
+      "kind": "Class",
+      "children_count": 4,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    },
+    {
+      "kind": "Function",
+      "children_count": 0,
+      "has_parent": true
+    }
+  ],
+  "symbol_count": 11,
+  "symbols": [
+    {
+      "name": "Repository",
+      "kind": "TypeAlias",
+      "declaration_kind": "TypeAlias",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "User",
+      "kind": "TypeAlias",
+      "declaration_kind": "TypeAlias",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "UserRepository",
+      "kind": "Class",
+      "declaration_kind": "Class",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "UserRole",
+      "kind": "TypeAlias",
+      "declaration_kind": "TypeAlias",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "createUser",
+      "kind": "Function",
+      "declaration_kind": "Function",
+      "is_exported": false,
+      "references_count": 0
+    },
+    {
+      "name": "email",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "id",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "id",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "name",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "role",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 1
+    },
+    {
+      "name": "user",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 3
+    }
+  ],
+  "unresolved_count": 2
+}

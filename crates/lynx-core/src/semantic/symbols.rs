@@ -21,6 +21,7 @@ pub enum SymbolKind {
     Parameter,
     Import,
     TypeAlias,
+    Enum,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,6 +33,8 @@ pub enum DeclarationKind {
     Class,
     Parameter,
     Import,
+    TypeAlias,
+    Enum,
 }
 
 #[derive(Debug)]
@@ -443,7 +446,8 @@ mod tests {
             (SymbolKind::Class, DeclarationKind::Class),
             (SymbolKind::Parameter, DeclarationKind::Parameter),
             (SymbolKind::Import, DeclarationKind::Import),
-            (SymbolKind::TypeAlias, DeclarationKind::Const),
+            (SymbolKind::TypeAlias, DeclarationKind::TypeAlias),
+            (SymbolKind::Enum, DeclarationKind::Enum),
         ];
 
         for (i, (kind, decl_kind)) in kinds.iter().enumerate() {

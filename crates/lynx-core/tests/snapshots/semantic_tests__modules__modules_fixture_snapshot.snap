@@ -46,7 +46,7 @@ expression: snapshot
       "has_parent": true
     }
   ],
-  "symbol_count": 24,
+  "symbol_count": 26,
   "symbols": [
     {
       "name": "API_URL",
@@ -87,6 +87,20 @@ expression: snapshot
       "name": "Service",
       "kind": "Class",
       "declaration_kind": "Class",
+      "is_exported": true,
+      "references_count": 0
+    },
+    {
+      "name": "Status",
+      "kind": "TypeAlias",
+      "declaration_kind": "TypeAlias",
+      "is_exported": true,
+      "references_count": 0
+    },
+    {
+      "name": "User",
+      "kind": "TypeAlias",
+      "declaration_kind": "TypeAlias",
       "is_exported": true,
       "references_count": 0
     },
