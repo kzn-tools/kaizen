@@ -25,13 +25,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: Run benchmarks
-        run: cargo bench --package lynx-core -- --output-format bencher | tee output.txt
+        run: cargo bench --package lynx-core 2>&1 | tee output.txt
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Lynx Benchmarks
-          tool: "cargo"
+          tool: "criterionrs"
           output-file-path: output.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
@@ -39,3 +39,4 @@ jobs:
           comment-on-alert: true
           fail-on-alert: false
           alert-comment-cc-users: "@mpiton"
+          fail-threshold: "200%"
