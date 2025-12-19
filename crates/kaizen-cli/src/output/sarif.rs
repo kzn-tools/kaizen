@@ -318,15 +318,16 @@ impl<'a> SarifFormatter<'a> {
 
         let fingerprint = generate_fingerprint(&diag.rule_id, &diag.file, diag.line);
 
-        let properties =
-            if diag.confidence != kaizen_core::rules::Confidence::High || diag.suggestion.is_some() {
-                Some(SarifResultProperties {
-                    confidence: Some(format!("{:?}", diag.confidence).to_lowercase()),
-                    suggestion: diag.suggestion.clone(),
-                })
-            } else {
-                None
-            };
+        let properties = if diag.confidence != kaizen_core::rules::Confidence::High
+            || diag.suggestion.is_some()
+        {
+            Some(SarifResultProperties {
+                confidence: Some(format!("{:?}", diag.confidence).to_lowercase()),
+                suggestion: diag.suggestion.clone(),
+            })
+        } else {
+            None
+        };
 
         SarifResult {
             rule_id: diag.rule_id.clone(),
