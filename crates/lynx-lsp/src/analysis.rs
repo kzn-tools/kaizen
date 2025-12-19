@@ -4,7 +4,7 @@ use lynx_core::diagnostic::Diagnostic as CoreDiagnostic;
 use lynx_core::parser::ParsedFile;
 use lynx_core::rules::RuleRegistry;
 use lynx_core::rules::quality::{
-    Eqeqeq, FloatingPromises, NoConsole, NoEval, NoUnusedVars, NoVar, PreferUsing,
+    Eqeqeq, FloatingPromises, NoConsole, NoEval, NoUnusedVars, NoVar, PreferConst, PreferUsing,
 };
 use tower_lsp::lsp_types::Diagnostic;
 
@@ -55,6 +55,7 @@ fn create_default_registry() -> RuleRegistry {
     registry.register(Box::new(NoUnusedVars::new()));
     registry.register(Box::new(PreferUsing::new()));
     registry.register(Box::new(FloatingPromises::new()));
+    registry.register(Box::new(PreferConst::new()));
 
     registry
 }

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use swc_ecma_ast::{ExportSpecifier, ModuleDecl, ModuleItem};
 
 use crate::declare_rule;
-use crate::diagnostic::Diagnostic;
+use crate::diagnostic::{Diagnostic, Fix};
 use crate::parser::ParsedFile;
 use crate::rules::{Rule, RuleMetadata, Severity};
 use crate::semantic::symbols::SymbolKind;
@@ -55,6 +55,16 @@ impl Rule for NoUnusedImports {
 
             if is_unused {
                 let (line, column) = ctx.span_to_location(symbol.span);
+                let end_column = column + symbol.name.len() - 1;
+
+                let fix = Fix::replace(
+                    format!("Remove unused import '{}'", symbol.name),
+                    "",
+                    line,
+                    column,
+                    line,
+                    end_column,
+                );
 
                 let diagnostic = Diagnostic::new(
                     "Q003",
@@ -64,10 +74,12 @@ impl Rule for NoUnusedImports {
                     line,
                     column,
                 )
+                .with_end(line, end_column)
                 .with_suggestion(format!(
                     "Remove unused import '{}' or prefix with underscore if intentionally unused",
                     symbol.name
-                ));
+                ))
+                .with_fix(fix);
 
                 diagnostics.push(diagnostic);
             }
@@ -422,5 +434,20 @@ console.log(baz);
         let diagnostics = run_no_unused_imports(code);
 
         assert!(diagnostics.is_empty());
+    }
+
+    #[test]
+    fn fix_provided() {
+        let diagnostics = run_no_unused_imports("import { unused } from 'module';");
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].fixes.len(), 1);
+
+        let fix = &diagnostics[0].fixes[0];
+        assert!(fix.title.contains("Remove unused import"));
+        assert!(matches!(
+            &fix.kind,
+            crate::diagnostic::FixKind::ReplaceWith { new_text } if new_text.is_empty()
+        ));
     }
 }

@@ -5,7 +5,7 @@ use std::ops::ControlFlow;
 use swc_ecma_ast::{VarDecl, VarDeclKind};
 
 use crate::declare_rule;
-use crate::diagnostic::Diagnostic;
+use crate::diagnostic::{Diagnostic, Fix};
 use crate::parser::ParsedFile;
 use crate::rules::{Rule, RuleMetadata, Severity};
 use crate::visitor::{AstVisitor, VisitorContext, walk_ast};
@@ -35,6 +35,7 @@ impl Rule for NoVar {
         let mut visitor = NoVarVisitor {
             diagnostics: Vec::new(),
             file_path: file.metadata().filename.clone(),
+            ctx: &ctx,
         };
 
         walk_ast(module, &mut visitor, &ctx);
@@ -42,15 +43,26 @@ impl Rule for NoVar {
     }
 }
 
-struct NoVarVisitor {
+struct NoVarVisitor<'a> {
     diagnostics: Vec<Diagnostic>,
     file_path: String,
+    ctx: &'a VisitorContext<'a>,
 }
 
-impl AstVisitor for NoVarVisitor {
-    fn visit_var_decl(&mut self, node: &VarDecl, ctx: &VisitorContext) -> ControlFlow<()> {
+impl AstVisitor for NoVarVisitor<'_> {
+    fn visit_var_decl(&mut self, node: &VarDecl, _ctx: &VisitorContext) -> ControlFlow<()> {
         if node.kind == VarDeclKind::Var {
-            let (line, column) = ctx.span_to_location(node.span);
+            let (line, column) = self.ctx.span_to_location(node.span);
+
+            let fix = Fix::replace(
+                "Replace 'var' with 'let'",
+                "let",
+                line,
+                column,
+                line,
+                column + 2,
+            );
+
             let diagnostic = Diagnostic::new(
                 "Q030",
                 Severity::Warning,
@@ -59,7 +71,9 @@ impl AstVisitor for NoVarVisitor {
                 line,
                 column,
             )
-            .with_suggestion("Replace 'var' with 'let' or 'const'");
+            .with_end(line, column + 2)
+            .with_suggestion("Replace 'var' with 'let' or 'const'")
+            .with_fix(fix);
 
             self.diagnostics.push(diagnostic);
         }
@@ -171,5 +185,24 @@ var c = 3;
             diagnostics[0].suggestion,
             Some("Replace 'var' with 'let' or 'const'".to_string())
         );
+    }
+
+    #[test]
+    fn fix_provided() {
+        let diagnostics = run_no_var("var x = 1;");
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].fixes.len(), 1);
+
+        let fix = &diagnostics[0].fixes[0];
+        assert_eq!(fix.title, "Replace 'var' with 'let'");
+        assert!(matches!(
+            &fix.kind,
+            crate::diagnostic::FixKind::ReplaceWith { new_text } if new_text == "let"
+        ));
+        assert_eq!(fix.line, 1);
+        assert_eq!(fix.column, diagnostics[0].column);
+        assert_eq!(fix.end_line, 1);
+        assert_eq!(fix.end_column, diagnostics[0].column + 2);
     }
 }
