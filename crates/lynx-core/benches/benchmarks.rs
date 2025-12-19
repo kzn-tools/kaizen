@@ -1,4 +1,5 @@
 use std::hint::black_box;
+use std::time::Instant;
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use lynx_core::analysis::AnalysisEngine;
@@ -209,5 +210,78 @@ fn bench_analysis(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_parsing, bench_rules, bench_analysis);
+fn bench_latency_percentiles(c: &mut Criterion) {
+    let mut group = c.benchmark_group("latency");
+
+    let engine = AnalysisEngine::new();
+    let code_500 = generate_500_loc_typescript();
+
+    group.bench_function("p95_500_loc_parse_analyze", |b| {
+        b.iter_custom(|iters| {
+            let mut durations: Vec<_> = (0..iters)
+                .map(|_| {
+                    let start = Instant::now();
+                    let file =
+                        ParsedFile::from_source(black_box("benchmark.ts"), black_box(&code_500));
+                    let _ = engine.analyze(black_box(&file));
+                    start.elapsed()
+                })
+                .collect();
+            durations.sort();
+            let p95_idx = ((iters as f64) * 0.95) as usize;
+            let p95_idx = p95_idx.min(durations.len().saturating_sub(1));
+            durations[p95_idx]
+        })
+    });
+
+    let files_100 = generate_100_files();
+    group.bench_function("p95_per_file_100_files", |b| {
+        b.iter_custom(|iters| {
+            let mut all_durations = Vec::with_capacity((iters as usize) * 100);
+            for _ in 0..iters {
+                for (name, content) in &files_100 {
+                    let start = Instant::now();
+                    let file = ParsedFile::from_source(black_box(name), black_box(content));
+                    let _ = engine.analyze(black_box(&file));
+                    all_durations.push(start.elapsed());
+                }
+            }
+            all_durations.sort();
+            let p95_idx = ((all_durations.len() as f64) * 0.95) as usize;
+            let p95_idx = p95_idx.min(all_durations.len().saturating_sub(1));
+            all_durations[p95_idx]
+        })
+    });
+
+    group.finish();
+}
+
+fn bench_memory(c: &mut Criterion) {
+    let mut group = c.benchmark_group("memory");
+    group.sample_size(10);
+
+    let files_100 = generate_100_files();
+    let parsed_files: Vec<ParsedFile> = files_100
+        .iter()
+        .map(|(name, content)| ParsedFile::from_source(name, content))
+        .collect();
+
+    group.bench_function("100_files_retained", |b| {
+        b.iter(|| {
+            let retained: Vec<_> = parsed_files.iter().map(|f| f.source().len()).collect();
+            black_box(retained)
+        })
+    });
+
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    bench_parsing,
+    bench_rules,
+    bench_analysis,
+    bench_latency_percentiles,
+    bench_memory
+);
 criterion_main!(benches);
