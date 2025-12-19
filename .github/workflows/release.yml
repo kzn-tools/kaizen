@@ -22,22 +22,27 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            npm_pkg: linux-x64
             use_cross: false
 
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
+            npm_pkg: linux-arm64
             use_cross: true
 
           - os: macos-latest
             target: x86_64-apple-darwin
+            npm_pkg: darwin-x64
             use_cross: false
 
           - os: macos-latest
             target: aarch64-apple-darwin
+            npm_pkg: darwin-arm64
             use_cross: false
 
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            npm_pkg: win32-x64
             use_cross: false
 
     steps:
@@ -85,6 +90,25 @@ jobs:
             ${{ env.BINARY_NAME }}-${{ matrix.target }}.zip
           if-no-files-found: error
 
+      - name: Prepare npm package (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p npm/${{ matrix.npm_pkg }}/bin
+          cp target/${{ matrix.target }}/release/${{ env.BINARY_NAME }} npm/${{ matrix.npm_pkg }}/bin/
+
+      - name: Prepare npm package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path npm/${{ matrix.npm_pkg }}/bin
+          Copy-Item target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}.exe npm/${{ matrix.npm_pkg }}/bin/
+
+      - name: Upload npm package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-${{ matrix.npm_pkg }}
+          path: npm/${{ matrix.npm_pkg }}
+
   release:
     name: Create Release
     needs: build
@@ -116,3 +140,66 @@ jobs:
             release/*
           generate_release_notes: true
           fail_on_unmatched_files: true
+
+  publish-npm:
+    name: Publish npm packages
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Get version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Download all npm artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: npm-*
+          path: npm-artifacts
+
+      - name: Prepare platform packages
+        run: |
+          for platform in linux-x64 linux-arm64 darwin-x64 darwin-arm64 win32-x64; do
+            mkdir -p npm/$platform/bin
+            cp -r npm-artifacts/npm-$platform/* npm/$platform/
+            # Update version in package.json
+            jq --arg v "${{ steps.version.outputs.version }}" '.version = $v' npm/$platform/package.json > tmp.json
+            mv tmp.json npm/$platform/package.json
+          done
+
+      - name: Update main package version
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          jq --arg v "$VERSION" '
+            .version = $v |
+            .optionalDependencies["kzn-cli-linux-x64"] = $v |
+            .optionalDependencies["kzn-cli-linux-arm64"] = $v |
+            .optionalDependencies["kzn-cli-darwin-x64"] = $v |
+            .optionalDependencies["kzn-cli-darwin-arm64"] = $v |
+            .optionalDependencies["kzn-cli-win32-x64"] = $v
+          ' npm/kaizen-cli/package.json > tmp.json
+          mv tmp.json npm/kaizen-cli/package.json
+
+      - name: Publish platform packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          for platform in linux-x64 linux-arm64 darwin-x64 darwin-arm64 win32-x64; do
+            echo "Publishing kzn-cli-$platform..."
+            cd npm/$platform
+            npm publish --access public || echo "Package may already exist"
+            cd ../..
+          done
+
+      - name: Publish main package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd npm/kaizen-cli
+          npm publish || echo "Package may already exist"

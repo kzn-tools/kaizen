@@ -1,0 +1,14 @@
+{
+  "name": "kzn-cli-win32-x64",
+  "version": "0.1.0",
+  "description": "Windows x64 binary for kzn-cli",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mpiton/kaizen"
+  },
+  "os": ["win32"],
+  "cpu": ["x64"],
+  "files": ["bin"],
+  "preferUnplugged": true
+}

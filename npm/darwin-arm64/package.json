@@ -1,0 +1,14 @@
+{
+  "name": "kzn-cli-darwin-arm64",
+  "version": "0.1.0",
+  "description": "macOS ARM64 (Apple Silicon) binary for kzn-cli",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mpiton/kaizen"
+  },
+  "os": ["darwin"],
+  "cpu": ["arm64"],
+  "files": ["bin"],
+  "preferUnplugged": true
+}
