@@ -14,7 +14,7 @@ use crate::rules::quality::{
 };
 use crate::rules::security::{
     CommandInjection, EvalInjection, HardcodedSecrets, InsecureRandom, PrototypePollution, ReDoS,
-    SqlInjection, WeakHashing, Xss,
+    SqlInjection, UnsafeDeserialization, WeakHashing, Xss,
 };
 
 pub struct AnalysisEngine {
@@ -109,6 +109,7 @@ fn create_default_registry() -> RuleRegistry {
     registry.register(Box::new(InsecureRandom::new()));
     registry.register(Box::new(PrototypePollution::new()));
     registry.register(Box::new(ReDoS::new()));
+    registry.register(Box::new(UnsafeDeserialization::new()));
 
     registry
 }
