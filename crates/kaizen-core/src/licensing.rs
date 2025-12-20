@@ -6,9 +6,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 type HmacSha256 = Hmac<Sha256>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PremiumTier {
+    #[default]
     Free,
     Pro,
     Enterprise,
@@ -20,6 +21,14 @@ impl PremiumTier {
             PremiumTier::Free => "free",
             PremiumTier::Pro => "pro",
             PremiumTier::Enterprise => "enterprise",
+        }
+    }
+
+    pub fn level(&self) -> u8 {
+        match self {
+            PremiumTier::Free => 0,
+            PremiumTier::Pro => 1,
+            PremiumTier::Enterprise => 2,
         }
     }
 }

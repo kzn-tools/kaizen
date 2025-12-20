@@ -25,7 +25,7 @@ use crate::document::DocumentStore;
 pub struct KaizenLanguageServer {
     client: Client,
     documents: Arc<DocumentStore>,
-    analysis_engine: Arc<AnalysisEngine>,
+    analysis_engine: Arc<RwLock<AnalysisEngine>>,
     debouncer: Arc<Debouncer>,
     core_diagnostics: Arc<DashMap<Url, Vec<CoreDiagnostic>>>,
     workspace_root: Arc<RwLock<Option<PathBuf>>>,
@@ -39,7 +39,7 @@ impl KaizenLanguageServer {
         Self {
             client,
             documents: Arc::new(DocumentStore::new()),
-            analysis_engine: Arc::new(AnalysisEngine::new()),
+            analysis_engine: Arc::new(RwLock::new(AnalysisEngine::new())),
             debouncer: Arc::new(Debouncer::new()),
             core_diagnostics: Arc::new(DashMap::new()),
             workspace_root: Arc::new(RwLock::new(None)),
@@ -73,6 +73,7 @@ impl KaizenLanguageServer {
 
         *self.license_tier.write() = result.tier;
         *self.license_info.write() = result.info;
+        self.analysis_engine.write().set_tier(result.tier);
 
         info!(tier = %result.tier.as_str(), source = %result.source.as_str(), "license loaded");
     }
@@ -81,7 +82,7 @@ impl KaizenLanguageServer {
         let (lsp_diagnostics, core_diags) = self
             .documents
             .get(uri)
-            .map(|doc| self.analysis_engine.analyze_with_core(&doc))
+            .map(|doc| self.analysis_engine.read().analyze_with_core(&doc))
             .unwrap_or_default();
 
         self.core_diagnostics.insert(uri.clone(), core_diags);
@@ -101,7 +102,7 @@ impl KaizenLanguageServer {
         self.debouncer.schedule(uri.clone(), move || async move {
             let (lsp_diagnostics, core_diags) = documents
                 .get(&uri)
-                .map(|doc| analysis_engine.analyze_with_core(&doc))
+                .map(|doc| analysis_engine.read().analyze_with_core(&doc))
                 .unwrap_or_default();
 
             core_diagnostics.insert(uri.clone(), core_diags);

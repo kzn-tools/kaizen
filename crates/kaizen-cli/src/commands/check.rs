@@ -83,7 +83,7 @@ impl CheckArgs {
             return Ok(());
         }
 
-        let engine = AnalysisEngine::with_config(&config);
+        let engine = AnalysisEngine::with_config_and_tier(&config, license_result.tier);
         let min_severity = self.parse_severity()?;
         let min_confidence = self.parse_confidence()?;
 

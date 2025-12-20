@@ -1,6 +1,7 @@
 //! Analysis engine for code analysis and diagnostic generation
 
 use kaizen_core::diagnostic::Diagnostic as CoreDiagnostic;
+use kaizen_core::licensing::PremiumTier;
 use kaizen_core::parser::ParsedFile;
 use kaizen_core::rules::RuleRegistry;
 use kaizen_core::rules::quality::{
@@ -19,6 +20,10 @@ impl AnalysisEngine {
         Self {
             registry: create_default_registry(),
         }
+    }
+
+    pub fn set_tier(&mut self, tier: PremiumTier) {
+        self.registry.set_tier(tier);
     }
 
     #[allow(dead_code)]
