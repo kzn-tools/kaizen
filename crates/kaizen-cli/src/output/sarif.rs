@@ -509,7 +509,10 @@ mod tests {
         let driver = &parsed["runs"][0]["tool"]["driver"];
         assert_eq!(driver["name"], "Kaizen");
         assert!(driver["semanticVersion"].is_string());
-        assert_eq!(driver["informationUri"], "https://github.com/kzn-tools/kaizen");
+        assert_eq!(
+            driver["informationUri"],
+            "https://github.com/kzn-tools/kaizen"
+        );
     }
 
     #[test]
