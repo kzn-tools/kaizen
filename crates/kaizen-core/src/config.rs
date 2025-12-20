@@ -10,7 +10,7 @@ use crate::rules::{Confidence, Severity};
 
 pub const CONFIG_FILENAME: &str = "kaizen.toml";
 
-const KNOWN_TOP_LEVEL_KEYS: &[&str] = &["include", "exclude", "rules"];
+const KNOWN_TOP_LEVEL_KEYS: &[&str] = &["include", "exclude", "rules", "license"];
 const KNOWN_RULES_KEYS: &[&str] = &[
     "enabled",
     "disabled",
@@ -43,6 +43,13 @@ pub struct Config {
     pub include: Vec<String>,
     pub exclude: Vec<String>,
     pub rules: RulesConfig,
+    pub license: LicenseConfig,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct LicenseConfig {
+    pub api_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, PartialEq)]
