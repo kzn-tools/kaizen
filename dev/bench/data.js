@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766226001656,
+  "lastUpdate": 1766227349336,
   "repoUrl": "https://github.com/kzn-tools/kaizen",
   "entries": {
     "Kaizen Benchmarks": [
@@ -593,6 +593,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "memory/100_files_retained",
             "value": 36.305,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "goore.csmoviz@gmail.com",
+            "name": "Mathieu",
+            "username": "mpiton"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a7919d0fa83b78a19e991898598d68312217bf28",
+          "message": "Merge pull request #17 from kzn-tools/feature/redos\n\nfeat(rules): add S021 no-redos rule for ReDoS detection",
+          "timestamp": "2025-12-20T11:38:46+01:00",
+          "tree_id": "56cd3f6fcc3e02026a0bf2170af81baf4f4d42c6",
+          "url": "https://github.com/kzn-tools/kaizen/commit/a7919d0fa83b78a19e991898598d68312217bf28"
+        },
+        "date": 1766227348581,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "parsing/parse_500_loc",
+            "value": 396350,
+            "unit": "ns"
+          },
+          {
+            "name": "parsing/parse_tsx_component",
+            "value": 66062,
+            "unit": "ns"
+          },
+          {
+            "name": "parsing/parse_typescript_interfaces",
+            "value": 34871,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/quality_rules",
+            "value": 301010,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/security_rules",
+            "value": 300870,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/clean_code",
+            "value": 286740,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/analyze_500_loc",
+            "value": 1829800,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/analyze_100_files",
+            "value": 25124000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/10",
+            "value": 2607400,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/25",
+            "value": 6458300,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/50",
+            "value": 12858000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/100",
+            "value": 25623000,
+            "unit": "ns"
+          },
+          {
+            "name": "latency/p95_500_loc_parse_analyze",
+            "value": 105640,
+            "unit": "ns"
+          },
+          {
+            "name": "latency/p95_per_file_100_files",
+            "value": 162720,
+            "unit": "ns"
+          },
+          {
+            "name": "memory/100_files_retained",
+            "value": 36.316,
             "unit": "ns"
           }
         ]
