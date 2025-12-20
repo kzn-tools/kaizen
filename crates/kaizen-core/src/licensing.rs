@@ -6,9 +6,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 type HmacSha256 = Hmac<Sha256>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PremiumTier {
+    #[default]
     Free,
     Pro,
     Enterprise,
@@ -20,6 +21,14 @@ impl PremiumTier {
             PremiumTier::Free => "free",
             PremiumTier::Pro => "pro",
             PremiumTier::Enterprise => "enterprise",
+        }
+    }
+
+    pub fn level(&self) -> u8 {
+        match self {
+            PremiumTier::Free => 0,
+            PremiumTier::Pro => 1,
+            PremiumTier::Enterprise => 2,
         }
     }
 }
@@ -265,6 +274,19 @@ mod tests {
         assert_eq!(PremiumTier::Free.as_str(), "free");
         assert_eq!(PremiumTier::Pro.as_str(), "pro");
         assert_eq!(PremiumTier::Enterprise.as_str(), "enterprise");
+    }
+
+    #[test]
+    fn premium_tier_level_ordering() {
+        // Verify tier levels maintain correct ordering: Free < Pro < Enterprise
+        assert!(
+            PremiumTier::Free.level() < PremiumTier::Pro.level(),
+            "Free tier must have lower level than Pro"
+        );
+        assert!(
+            PremiumTier::Pro.level() < PremiumTier::Enterprise.level(),
+            "Pro tier must have lower level than Enterprise"
+        );
     }
 
     #[test]

@@ -4,6 +4,7 @@
 
 use crate::config::Config;
 use crate::diagnostic::Diagnostic;
+use crate::licensing::PremiumTier;
 use crate::parser::ParsedFile;
 use crate::rules::RuleRegistry;
 use crate::rules::quality::{
@@ -30,6 +31,13 @@ impl AnalysisEngine {
     pub fn with_config(config: &Config) -> Self {
         let mut registry = create_default_registry();
         registry.configure(&config.rules);
+        Self { registry }
+    }
+
+    pub fn with_config_and_tier(config: &Config, tier: PremiumTier) -> Self {
+        let mut registry = create_default_registry();
+        registry.configure(&config.rules);
+        registry.set_tier(tier);
         Self { registry }
     }
 

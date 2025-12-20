@@ -7,6 +7,7 @@ pub mod security;
 
 use crate::config::RulesConfig;
 use crate::diagnostic::Diagnostic;
+use crate::licensing::PremiumTier;
 use crate::parser::ParsedFile;
 use std::collections::{HashMap, HashSet};
 
@@ -49,6 +50,7 @@ pub struct RuleMetadata {
     pub description: &'static str,
     pub category: RuleCategory,
     pub severity: Severity,
+    pub min_tier: PremiumTier,
     pub docs_url: Option<&'static str>,
     pub examples: Option<&'static str>,
 }
@@ -64,6 +66,7 @@ pub struct RuleRegistry {
     severity_overrides: HashMap<String, Severity>,
     quality_enabled: bool,
     security_enabled: bool,
+    current_tier: PremiumTier,
 }
 
 impl RuleRegistry {
@@ -74,7 +77,12 @@ impl RuleRegistry {
             severity_overrides: HashMap::new(),
             quality_enabled: true,
             security_enabled: true,
+            current_tier: PremiumTier::Free,
         }
+    }
+
+    pub fn set_tier(&mut self, tier: PremiumTier) {
+        self.current_tier = tier;
     }
 
     pub fn register(&mut self, rule: Box<dyn Rule>) {
@@ -116,6 +124,10 @@ impl RuleRegistry {
 
     fn should_run_rule(&self, rule: &dyn Rule) -> bool {
         let metadata = rule.metadata();
+
+        if metadata.min_tier.level() > self.current_tier.level() {
+            return false;
+        }
 
         if !self.quality_enabled && metadata.category == RuleCategory::Quality {
             return false;
@@ -195,6 +207,7 @@ macro_rules! declare_rule {
         description = $desc:literal,
         category = $cat:ident,
         severity = $sev:ident
+        $(, min_tier = $tier:ident)?
         $(, docs_url = $url:literal)?
         $(, examples = $examples:literal)?
     ) => {
@@ -211,6 +224,7 @@ macro_rules! declare_rule {
                         description: $desc,
                         category: $crate::rules::RuleCategory::$cat,
                         severity: $crate::rules::Severity::$sev,
+                        min_tier: declare_rule!(@min_tier $($tier)?),
                         docs_url: declare_rule!(@docs_url $($url)?),
                         examples: declare_rule!(@examples $($examples)?),
                     },
@@ -224,6 +238,8 @@ macro_rules! declare_rule {
             }
         }
     };
+    (@min_tier $tier:ident) => { $crate::licensing::PremiumTier::$tier };
+    (@min_tier) => { $crate::licensing::PremiumTier::Free };
     (@docs_url $url:literal) => { Some($url) };
     (@docs_url) => { None };
     (@examples $examples:literal) => { Some($examples) };
@@ -248,6 +264,7 @@ mod tests {
                     description: "A test rule",
                     category: RuleCategory::Quality,
                     severity: Severity::Warning,
+                    min_tier: PremiumTier::Free,
                     docs_url: None,
                     examples: None,
                 },
@@ -262,6 +279,11 @@ mod tests {
 
         fn with_category(mut self, category: RuleCategory) -> Self {
             self.metadata.category = category;
+            self
+        }
+
+        fn with_min_tier(mut self, tier: PremiumTier) -> Self {
+            self.metadata.min_tier = tier;
             self
         }
 
@@ -698,5 +720,158 @@ mod tests {
 
         assert!(rule.is_some());
         assert_eq!(rule.unwrap().metadata().id, "Q032");
+    }
+
+    #[test]
+    fn tier_filtering_blocks_premium_rules_for_free_tier() {
+        let mut registry = RuleRegistry::new();
+        let diag1 = Diagnostic::new("T001", Severity::Warning, "Free rule", "test.js", 1, 0);
+        let diag2 = Diagnostic::new("T002", Severity::Warning, "Pro rule", "test.js", 2, 0);
+
+        registry.register(Box::new(
+            TestRule::new("T001")
+                .with_min_tier(PremiumTier::Free)
+                .with_diagnostic(diag1),
+        ));
+        registry.register(Box::new(
+            TestRule::new("T002")
+                .with_min_tier(PremiumTier::Pro)
+                .with_diagnostic(diag2),
+        ));
+
+        let file = ParsedFile::from_source("test.js", "const x = 1;");
+        let diagnostics = registry.run_all(&file);
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].rule_id, "T001");
+    }
+
+    #[test]
+    fn tier_filtering_allows_premium_rules_for_pro_tier() {
+        let mut registry = RuleRegistry::new();
+        let diag1 = Diagnostic::new("T001", Severity::Warning, "Free rule", "test.js", 1, 0);
+        let diag2 = Diagnostic::new("T002", Severity::Warning, "Pro rule", "test.js", 2, 0);
+
+        registry.register(Box::new(
+            TestRule::new("T001")
+                .with_min_tier(PremiumTier::Free)
+                .with_diagnostic(diag1),
+        ));
+        registry.register(Box::new(
+            TestRule::new("T002")
+                .with_min_tier(PremiumTier::Pro)
+                .with_diagnostic(diag2),
+        ));
+        registry.set_tier(PremiumTier::Pro);
+
+        let file = ParsedFile::from_source("test.js", "const x = 1;");
+        let diagnostics = registry.run_all(&file);
+
+        assert_eq!(diagnostics.len(), 2);
+    }
+
+    #[test]
+    fn tier_filtering_blocks_enterprise_rules_for_pro_tier() {
+        let mut registry = RuleRegistry::new();
+        let diag1 = Diagnostic::new("T001", Severity::Warning, "Pro rule", "test.js", 1, 0);
+        let diag2 = Diagnostic::new(
+            "T002",
+            Severity::Warning,
+            "Enterprise rule",
+            "test.js",
+            2,
+            0,
+        );
+
+        registry.register(Box::new(
+            TestRule::new("T001")
+                .with_min_tier(PremiumTier::Pro)
+                .with_diagnostic(diag1),
+        ));
+        registry.register(Box::new(
+            TestRule::new("T002")
+                .with_min_tier(PremiumTier::Enterprise)
+                .with_diagnostic(diag2),
+        ));
+        registry.set_tier(PremiumTier::Pro);
+
+        let file = ParsedFile::from_source("test.js", "const x = 1;");
+        let diagnostics = registry.run_all(&file);
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].rule_id, "T001");
+    }
+
+    #[test]
+    fn enterprise_tier_allows_all_rules() {
+        let mut registry = RuleRegistry::new();
+        let diag1 = Diagnostic::new("T001", Severity::Warning, "Free rule", "test.js", 1, 0);
+        let diag2 = Diagnostic::new("T002", Severity::Warning, "Pro rule", "test.js", 2, 0);
+        let diag3 = Diagnostic::new(
+            "T003",
+            Severity::Warning,
+            "Enterprise rule",
+            "test.js",
+            3,
+            0,
+        );
+
+        registry.register(Box::new(
+            TestRule::new("T001")
+                .with_min_tier(PremiumTier::Free)
+                .with_diagnostic(diag1),
+        ));
+        registry.register(Box::new(
+            TestRule::new("T002")
+                .with_min_tier(PremiumTier::Pro)
+                .with_diagnostic(diag2),
+        ));
+        registry.register(Box::new(
+            TestRule::new("T003")
+                .with_min_tier(PremiumTier::Enterprise)
+                .with_diagnostic(diag3),
+        ));
+        registry.set_tier(PremiumTier::Enterprise);
+
+        let file = ParsedFile::from_source("test.js", "const x = 1;");
+        let diagnostics = registry.run_all(&file);
+
+        assert_eq!(diagnostics.len(), 3);
+    }
+
+    #[test]
+    fn is_rule_enabled_respects_tier_filtering() {
+        let mut registry = RuleRegistry::new();
+        registry.register(Box::new(
+            TestRule::new("T001")
+                .with_name("free-rule")
+                .with_min_tier(PremiumTier::Free),
+        ));
+        registry.register(Box::new(
+            TestRule::new("T002")
+                .with_name("pro-rule")
+                .with_min_tier(PremiumTier::Pro),
+        ));
+
+        // Default tier is Free
+        assert!(
+            registry.is_rule_enabled("T001"),
+            "Free rule should be enabled for Free tier"
+        );
+        assert!(
+            !registry.is_rule_enabled("T002"),
+            "Pro rule should NOT be enabled for Free tier"
+        );
+
+        // Upgrade to Pro
+        registry.set_tier(PremiumTier::Pro);
+        assert!(
+            registry.is_rule_enabled("T001"),
+            "Free rule should be enabled for Pro tier"
+        );
+        assert!(
+            registry.is_rule_enabled("T002"),
+            "Pro rule should be enabled for Pro tier"
+        );
     }
 }
