@@ -1,5 +1,6 @@
 //! Check command - analyzes JavaScript/TypeScript files for issues
 
+use crate::license::{LicenseSource, load_license};
 use crate::output::json::JsonFormatter;
 use crate::output::pretty::PrettyFormatter;
 use crate::output::sarif::SarifFormatter;
@@ -9,6 +10,7 @@ use colored::Colorize;
 use kaizen_core::analysis::AnalysisEngine;
 use kaizen_core::config::load_config_or_default_with_warnings;
 use kaizen_core::diagnostic::Diagnostic;
+use kaizen_core::licensing::PremiumTier;
 use kaizen_core::parser::ParsedFile;
 use kaizen_core::rules::{Confidence, Severity};
 use rayon::prelude::*;
@@ -62,6 +64,9 @@ impl CheckArgs {
             eprintln!("{} {}", "warning:".yellow().bold(), warning);
         }
         let config = config_result.config;
+
+        let license_result = load_license(&config.license);
+        self.display_tier(&license_result.tier, &license_result.source);
 
         let files = if self.staged {
             get_staged_files()?
@@ -170,6 +175,29 @@ impl CheckArgs {
         let no_color_env = std::env::var("NO_COLOR").is_ok();
         if self.no_color || no_color_env {
             colored::control::set_override(false);
+        }
+    }
+
+    fn display_tier(&self, tier: &PremiumTier, source: &LicenseSource) {
+        if self.format != "pretty" && self.format != "text" {
+            return;
+        }
+
+        let tier_display = match tier {
+            PremiumTier::Free => "Free".dimmed(),
+            PremiumTier::Pro => "Pro".cyan().bold(),
+            PremiumTier::Enterprise => "Enterprise".magenta().bold(),
+        };
+
+        if *source == LicenseSource::None {
+            eprintln!("{} {}", "tier:".dimmed(), tier_display);
+        } else {
+            eprintln!(
+                "{} {} (from {})",
+                "tier:".dimmed(),
+                tier_display,
+                source.as_str().dimmed()
+            );
         }
     }
 

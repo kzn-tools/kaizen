@@ -3,6 +3,7 @@
 //! Ultra-fast JavaScript/TypeScript static analyzer written in Rust.
 
 mod commands;
+mod license;
 mod output;
 
 use clap::Parser;
