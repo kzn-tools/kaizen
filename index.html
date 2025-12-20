@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Kaizen Benchmarks</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        h1 { color: #333; }
+        #chart-container { width: 100%; height: 400px; }
+    </style>
+</head>
+<body>
+    <h1>Kaizen Performance Benchmarks</h1>
+    <div id="chart-container"></div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        fetch('./dev/bench/data.js')
+            .then(r => r.text())
+            .then(text => {
+                eval(text);
+                if (typeof window.BENCHMARK_DATA !== 'undefined') {
+                    const entries = window.BENCHMARK_DATA.entries || {};
+                    const benchName = Object.keys(entries)[0];
+                    if (benchName && entries[benchName]) {
+                        const data = entries[benchName];
+                        const labels = data.map((d, i) => `#${i + 1}`);
+                        const values = data.map(d => d.benches[0]?.value || 0);
+                        new Chart(document.getElementById('chart-container'), {
+                            type: 'line',
+                            data: { labels, datasets: [{ label: benchName, data: values, borderColor: '#4CAF50', fill: false }] },
+                            options: { responsive: true, scales: { y: { beginAtZero: true } } }
+                        });
+                    }
+                }
+            })
+            .catch(() => document.getElementById('chart-container').innerHTML = '<p>No benchmark data yet.</p>');
+    </script>
+</body>
+</html>
