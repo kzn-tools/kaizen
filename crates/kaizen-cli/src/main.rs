@@ -28,6 +28,7 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::Auth(args) => args.run(),
         Commands::Check(args) => args.run(),
         Commands::Init(args) => args.run(),
         Commands::Explain(args) => args.run(),
@@ -122,9 +123,36 @@ mod tests {
     fn cli_help_contains_commands() {
         let mut cmd = Cli::command();
         let help = cmd.render_help().to_string();
+        assert!(help.contains("auth"));
         assert!(help.contains("check"));
         assert!(help.contains("init"));
         assert!(help.contains("explain"));
+    }
+
+    #[test]
+    fn cli_parses_auth_login() {
+        let cli = Cli::try_parse_from(["kaizen", "auth", "login", "test-key"]).unwrap();
+        match cli.command {
+            Commands::Auth(args) => match args.command {
+                commands::auth::AuthSubcommand::Login { api_key } => {
+                    assert_eq!(api_key, "test-key");
+                }
+                _ => panic!("Expected Login subcommand"),
+            },
+            _ => panic!("Expected Auth command"),
+        }
+    }
+
+    #[test]
+    fn cli_parses_auth_status() {
+        let cli = Cli::try_parse_from(["kaizen", "auth", "status"]).unwrap();
+        assert!(matches!(cli.command, Commands::Auth(_)));
+    }
+
+    #[test]
+    fn cli_parses_auth_logout() {
+        let cli = Cli::try_parse_from(["kaizen", "auth", "logout"]).unwrap();
+        assert!(matches!(cli.command, Commands::Auth(_)));
     }
 
     #[test]
