@@ -277,6 +277,19 @@ mod tests {
     }
 
     #[test]
+    fn premium_tier_level_ordering() {
+        // Verify tier levels maintain correct ordering: Free < Pro < Enterprise
+        assert!(
+            PremiumTier::Free.level() < PremiumTier::Pro.level(),
+            "Free tier must have lower level than Pro"
+        );
+        assert!(
+            PremiumTier::Pro.level() < PremiumTier::Enterprise.level(),
+            "Pro tier must have lower level than Enterprise"
+        );
+    }
+
+    #[test]
     fn license_info_expired_check() {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)

@@ -71,9 +71,11 @@ impl KaizenLanguageServer {
 
         let result = load_license_from_sources(&license_config).await;
 
+        // Update analysis engine first (source of truth for rule filtering)
+        // to avoid race condition where analysis runs with stale tier
+        self.analysis_engine.write().set_tier(result.tier);
         *self.license_tier.write() = result.tier;
         *self.license_info.write() = result.info;
-        self.analysis_engine.write().set_tier(result.tier);
 
         info!(tier = %result.tier.as_str(), source = %result.source.as_str(), "license loaded");
     }

@@ -838,4 +838,40 @@ mod tests {
 
         assert_eq!(diagnostics.len(), 3);
     }
+
+    #[test]
+    fn is_rule_enabled_respects_tier_filtering() {
+        let mut registry = RuleRegistry::new();
+        registry.register(Box::new(
+            TestRule::new("T001")
+                .with_name("free-rule")
+                .with_min_tier(PremiumTier::Free),
+        ));
+        registry.register(Box::new(
+            TestRule::new("T002")
+                .with_name("pro-rule")
+                .with_min_tier(PremiumTier::Pro),
+        ));
+
+        // Default tier is Free
+        assert!(
+            registry.is_rule_enabled("T001"),
+            "Free rule should be enabled for Free tier"
+        );
+        assert!(
+            !registry.is_rule_enabled("T002"),
+            "Pro rule should NOT be enabled for Free tier"
+        );
+
+        // Upgrade to Pro
+        registry.set_tier(PremiumTier::Pro);
+        assert!(
+            registry.is_rule_enabled("T001"),
+            "Free rule should be enabled for Pro tier"
+        );
+        assert!(
+            registry.is_rule_enabled("T002"),
+            "Pro rule should be enabled for Pro tier"
+        );
+    }
 }
