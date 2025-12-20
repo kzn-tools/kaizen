@@ -497,4 +497,36 @@ no-eval = "error"
         assert_eq!(result.config, Config::default());
         assert!(result.warnings.is_empty());
     }
+
+    #[test]
+    fn license_config_parses_correctly() {
+        let dir = create_temp_dir();
+        let config_path = dir.path().join(CONFIG_FILENAME);
+        fs::write(
+            &config_path,
+            r#"
+[license]
+api_key = "test-license-key-123"
+"#,
+        )
+        .unwrap();
+
+        let config = load_config(&config_path).unwrap();
+
+        assert_eq!(
+            config.license.api_key,
+            Some("test-license-key-123".to_string())
+        );
+    }
+
+    #[test]
+    fn license_config_defaults_to_none() {
+        let dir = create_temp_dir();
+        let config_path = dir.path().join(CONFIG_FILENAME);
+        fs::write(&config_path, "").unwrap();
+
+        let config = load_config(&config_path).unwrap();
+
+        assert_eq!(config.license.api_key, None);
+    }
 }

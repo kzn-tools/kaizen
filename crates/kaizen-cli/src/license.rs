@@ -8,7 +8,8 @@
 use kaizen_core::config::LicenseConfig;
 use kaizen_core::licensing::{LicenseError, LicenseInfo, LicenseValidator, PremiumTier};
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
+use tracing::debug;
 
 const ENV_VAR_NAME: &str = "KAIZEN_API_KEY";
 const CREDENTIALS_FILE: &str = ".kaizen/credentials";
@@ -75,7 +76,7 @@ fn read_from_credentials() -> Option<String> {
     read_key_from_file(&credentials_path)
 }
 
-fn read_key_from_file(path: &PathBuf) -> Option<String> {
+fn read_key_from_file(path: &Path) -> Option<String> {
     fs::read_to_string(path)
         .ok()
         .map(|s| s.trim().to_string())
@@ -92,8 +93,14 @@ fn validate_key(key: &str, source: LicenseSource) -> Option<LicenseResult> {
             info: Some(info),
             source,
         }),
-        Err(LicenseError::Expired) => None,
-        Err(_) => None,
+        Err(LicenseError::Expired) => {
+            debug!("License from {} has expired", source.as_str());
+            None
+        }
+        Err(e) => {
+            debug!("License validation failed from {}: {}", source.as_str(), e);
+            None
+        }
     }
 }
 
@@ -109,6 +116,7 @@ fn get_validation_secret() -> Option<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn create_test_secret() -> Vec<u8> {
@@ -141,6 +149,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn load_license_returns_free_when_no_license() {
         let config = LicenseConfig { api_key: None };
         unsafe { std::env::remove_var(ENV_VAR_NAME) };
@@ -153,6 +162,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn load_license_from_config() {
         let secret = create_test_secret();
         let license = create_test_license(PremiumTier::Pro, &secret);
@@ -175,6 +185,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn env_takes_priority_over_config() {
         let secret = create_test_secret();
         let env_license = create_test_license(PremiumTier::Enterprise, &secret);
