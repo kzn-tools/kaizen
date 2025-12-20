@@ -7,6 +7,7 @@ pub mod insecure_random;
 pub mod prototype_pollution;
 pub mod redos;
 pub mod sql_injection;
+pub mod unsafe_deserialization;
 pub mod weak_hashing;
 pub mod xss;
 
@@ -17,5 +18,6 @@ pub use insecure_random::InsecureRandom;
 pub use prototype_pollution::PrototypePollution;
 pub use redos::ReDoS;
 pub use sql_injection::SqlInjection;
+pub use unsafe_deserialization::UnsafeDeserialization;
 pub use weak_hashing::WeakHashing;
 pub use xss::Xss;
