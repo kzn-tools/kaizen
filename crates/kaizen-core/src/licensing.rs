@@ -34,6 +34,8 @@ pub struct LicenseInfo {
 
 impl LicenseInfo {
     pub fn is_expired(&self) -> bool {
+        // If system clock is before UNIX epoch (extremely rare), treat as expired.
+        // This is a safe fallback since such a state indicates system misconfiguration.
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs())
@@ -59,24 +61,24 @@ pub enum LicenseError {
 }
 
 pub struct LicenseValidator {
-    secret_key: Vec<u8>,
+    secret_key: Box<[u8]>,
 }
 
 impl LicenseValidator {
     pub fn new(secret_key: impl AsRef<[u8]>) -> Self {
         Self {
-            secret_key: secret_key.as_ref().to_vec(),
+            secret_key: secret_key.as_ref().into(),
         }
     }
 
     pub fn validate(&self, license_key: &str) -> Result<LicenseInfo, LicenseError> {
-        let parts: Vec<&str> = license_key.split('.').collect();
-        if parts.len() != 2 {
+        let (payload_b64, signature_b64) = license_key
+            .split_once('.')
+            .ok_or(LicenseError::InvalidFormat)?;
+
+        if signature_b64.contains('.') {
             return Err(LicenseError::InvalidFormat);
         }
-
-        let payload_b64 = parts[0];
-        let signature_b64 = parts[1];
 
         let payload_bytes = BASE64
             .decode(payload_b64)
