@@ -77,18 +77,6 @@ impl UnsafeDeserializationVisitor<'_> {
         prop.sym.as_ref() == "parse"
     }
 
-    fn is_dangerous_call(ident: &Ident) -> bool {
-        let name = ident.sym.as_ref();
-        matches!(name, "eval" | "Function" | "setTimeout" | "setInterval")
-    }
-
-    fn is_dangerous_new_expr(new_expr: &NewExpr) -> bool {
-        if let Expr::Ident(ident) = new_expr.callee.as_ref() {
-            return ident.sym.as_ref() == "Function";
-        }
-        false
-    }
-
     fn get_dangerous_call_name(ident: &Ident) -> Option<&'static str> {
         match ident.sym.as_ref() {
             "eval" => Some("eval"),
@@ -97,6 +85,17 @@ impl UnsafeDeserializationVisitor<'_> {
             "setInterval" => Some("setInterval"),
             _ => None,
         }
+    }
+
+    fn is_dangerous_call(ident: &Ident) -> bool {
+        Self::get_dangerous_call_name(ident).is_some()
+    }
+
+    fn is_dangerous_new_expr(new_expr: &NewExpr) -> bool {
+        if let Expr::Ident(ident) = new_expr.callee.as_ref() {
+            return ident.sym.as_ref() == "Function";
+        }
+        false
     }
 
     fn check_expr_for_dangerous_patterns(&self, expr: &Expr) -> Option<&'static str> {
