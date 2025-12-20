@@ -13,7 +13,7 @@ use crate::rules::quality::{
     PreferOptionalChaining, PreferUsing,
 };
 use crate::rules::security::{
-    CommandInjection, EvalInjection, HardcodedSecrets, InsecureRandom, PrototypePollution,
+    CommandInjection, EvalInjection, HardcodedSecrets, InsecureRandom, PrototypePollution, ReDoS,
     SqlInjection, WeakHashing, Xss,
 };
 
@@ -108,6 +108,7 @@ fn create_default_registry() -> RuleRegistry {
     registry.register(Box::new(WeakHashing::new()));
     registry.register(Box::new(InsecureRandom::new()));
     registry.register(Box::new(PrototypePollution::new()));
+    registry.register(Box::new(ReDoS::new()));
 
     registry
 }
