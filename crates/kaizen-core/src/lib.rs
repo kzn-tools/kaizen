@@ -12,6 +12,7 @@ pub mod analysis;
 pub mod config;
 pub mod diagnostic;
 pub mod disable_comments;
+pub mod licensing;
 pub mod parser;
 pub mod rules;
 pub mod semantic;
@@ -42,6 +43,12 @@ mod tests {
     #[test]
     fn taint_module_accessible() {
         let _ = crate::taint::TaintAnalyzer::new();
+    }
+
+    #[test]
+    fn licensing_module_accessible() {
+        let _ = crate::licensing::PremiumTier::Free;
+        let _ = crate::licensing::LicenseValidator::new(b"test-key");
     }
 
     #[test]
