@@ -13,8 +13,8 @@ use crate::rules::quality::{
     PreferOptionalChaining, PreferUsing,
 };
 use crate::rules::security::{
-    CommandInjection, EvalInjection, HardcodedSecrets, InsecureRandom, SqlInjection, WeakHashing,
-    Xss,
+    CommandInjection, EvalInjection, HardcodedSecrets, InsecureRandom, PrototypePollution,
+    SqlInjection, WeakHashing, Xss,
 };
 
 pub struct AnalysisEngine {
@@ -107,6 +107,7 @@ fn create_default_registry() -> RuleRegistry {
     registry.register(Box::new(HardcodedSecrets::new()));
     registry.register(Box::new(WeakHashing::new()));
     registry.register(Box::new(InsecureRandom::new()));
+    registry.register(Box::new(PrototypePollution::new()));
 
     registry
 }
