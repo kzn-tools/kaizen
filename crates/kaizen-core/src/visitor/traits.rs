@@ -4,7 +4,7 @@ use std::ops::ControlFlow;
 
 use swc_ecma_ast::{
     ArrowExpr, AssignExpr, BinExpr, CallExpr, ClassDecl, FnDecl, Function, Ident, MemberExpr,
-    NewExpr, UpdateExpr, VarDecl,
+    NewExpr, Regex, UpdateExpr, VarDecl,
 };
 
 use super::context::VisitorContext;
@@ -55,6 +55,10 @@ pub trait AstVisitor {
     }
 
     fn visit_update_expr(&mut self, _node: &UpdateExpr, _ctx: &VisitorContext) -> ControlFlow<()> {
+        ControlFlow::Continue(())
+    }
+
+    fn visit_regex(&mut self, _node: &Regex, _ctx: &VisitorContext) -> ControlFlow<()> {
         ControlFlow::Continue(())
     }
 }
