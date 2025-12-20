@@ -536,18 +536,7 @@ impl TaintSinksRegistry {
                 None,
                 TaintSinkCategory::PrototypePollution,
                 "Deep merge with untrusted source",
-                vec![1],
-            ));
-        }
-
-        let generic_merge_methods = ["merge", "extend", "assign", "defaults"];
-        for method in generic_merge_methods {
-            self.register_pattern(TaintSinkPattern::builtin(
-                vec!["obj"],
-                Some(method),
-                TaintSinkCategory::PrototypePollution,
-                "Object merge with untrusted source",
-                vec![0],
+                vec![0, 1],
             ));
         }
     }
