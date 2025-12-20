@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766227349336,
+  "lastUpdate": 1766244098181,
   "repoUrl": "https://github.com/kzn-tools/kaizen",
   "entries": {
     "Kaizen Benchmarks": [
@@ -692,6 +692,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "memory/100_files_retained",
             "value": 36.316,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "goore.csmoviz@gmail.com",
+            "name": "Mathieu",
+            "username": "mpiton"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "af1adf5c59d0a6441b71ca6d68be45d701cb7a1a",
+          "message": "Merge pull request #18 from kzn-tools/feature/unsafe-deserialization\n\nfeat(rules): add S022 no-unsafe-deserialization rule",
+          "timestamp": "2025-12-20T16:17:53+01:00",
+          "tree_id": "954bd3bedcff9be507abf829b0ae9d1393a2d1d4",
+          "url": "https://github.com/kzn-tools/kaizen/commit/af1adf5c59d0a6441b71ca6d68be45d701cb7a1a"
+        },
+        "date": 1766244097342,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "parsing/parse_500_loc",
+            "value": 392000,
+            "unit": "ns"
+          },
+          {
+            "name": "parsing/parse_tsx_component",
+            "value": 65028.00000000001,
+            "unit": "ns"
+          },
+          {
+            "name": "parsing/parse_typescript_interfaces",
+            "value": 34385,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/quality_rules",
+            "value": 298980,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/security_rules",
+            "value": 300530,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/clean_code",
+            "value": 284830,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/analyze_500_loc",
+            "value": 1829700,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/analyze_100_files",
+            "value": 25260000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/10",
+            "value": 2548600,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/25",
+            "value": 6269000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/50",
+            "value": 12650000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/100",
+            "value": 25770000,
+            "unit": "ns"
+          },
+          {
+            "name": "latency/p95_500_loc_parse_analyze",
+            "value": 105770,
+            "unit": "ns"
+          },
+          {
+            "name": "latency/p95_per_file_100_files",
+            "value": 162580,
+            "unit": "ns"
+          },
+          {
+            "name": "memory/100_files_retained",
+            "value": 36.462,
             "unit": "ns"
           }
         ]
