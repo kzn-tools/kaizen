@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766225054730,
+  "lastUpdate": 1766226001656,
   "repoUrl": "https://github.com/kzn-tools/kaizen",
   "entries": {
     "Kaizen Benchmarks": [
@@ -494,6 +494,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "memory/100_files_retained",
             "value": 39.466,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "goore.csmoviz@gmail.com",
+            "name": "Mathieu",
+            "username": "mpiton"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a5f56e287051ec6df9ce997a1018547721eadd96",
+          "message": "Merge pull request #16 from kzn-tools/feature/prototype-pollution\n\nfeat(rules): implement S020 no-prototype-pollution rule",
+          "timestamp": "2025-12-20T11:16:17+01:00",
+          "tree_id": "6ff2f0ada770c68239f2a428e2742910b3f7ca77",
+          "url": "https://github.com/kzn-tools/kaizen/commit/a5f56e287051ec6df9ce997a1018547721eadd96"
+        },
+        "date": 1766226000851,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "parsing/parse_500_loc",
+            "value": 396940,
+            "unit": "ns"
+          },
+          {
+            "name": "parsing/parse_tsx_component",
+            "value": 66193,
+            "unit": "ns"
+          },
+          {
+            "name": "parsing/parse_typescript_interfaces",
+            "value": 35234,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/quality_rules",
+            "value": 299960,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/security_rules",
+            "value": 299270,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/clean_code",
+            "value": 285460,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/analyze_500_loc",
+            "value": 1782200,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/analyze_100_files",
+            "value": 25094000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/10",
+            "value": 2489600,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/25",
+            "value": 6209400,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/50",
+            "value": 12999000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/100",
+            "value": 26924000,
+            "unit": "ns"
+          },
+          {
+            "name": "latency/p95_500_loc_parse_analyze",
+            "value": 104060,
+            "unit": "ns"
+          },
+          {
+            "name": "latency/p95_per_file_100_files",
+            "value": 161470,
+            "unit": "ns"
+          },
+          {
+            "name": "memory/100_files_retained",
+            "value": 36.305,
             "unit": "ns"
           }
         ]
