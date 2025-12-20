@@ -5,11 +5,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mpiton/kaizen"
+    "url": "https://github.com/kzn-tools/kaizen"
   },
-  "homepage": "https://github.com/mpiton/kaizen",
+  "homepage": "https://github.com/kzn-tools/kaizen",
   "bugs": {
-    "url": "https://github.com/mpiton/kaizen/issues"
+    "url": "https://github.com/kzn-tools/kaizen/issues"
   },
   "keywords": [
     "javascript",

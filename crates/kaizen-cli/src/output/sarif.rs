@@ -217,7 +217,7 @@ impl<'a> SarifFormatter<'a> {
                     driver: SarifDriver {
                         name: "Kaizen",
                         semantic_version: env!("CARGO_PKG_VERSION"),
-                        information_uri: Some("https://github.com/mpiton/kaizen"),
+                        information_uri: Some("https://github.com/kzn-tools/kaizen"),
                         rules,
                     },
                 },
@@ -509,7 +509,7 @@ mod tests {
         let driver = &parsed["runs"][0]["tool"]["driver"];
         assert_eq!(driver["name"], "Kaizen");
         assert!(driver["semanticVersion"].is_string());
-        assert_eq!(driver["informationUri"], "https://github.com/mpiton/kaizen");
+        assert_eq!(driver["informationUri"], "https://github.com/kzn-tools/kaizen");
     }
 
     #[test]

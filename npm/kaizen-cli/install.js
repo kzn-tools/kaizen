@@ -13,7 +13,7 @@ const PLATFORMS = {
 
 const VERSION = require("./package.json").version;
 const BINARY_NAME = "kaizen-cli";
-const REPO = "mpiton/kaizen";
+const REPO = "kzn-tools/kaizen";
 
 function isPlatformPackageInstalled() {
   const platformKey = `${process.platform}-${process.arch}`;
@@ -135,7 +135,7 @@ async function downloadBinary() {
     await downloadBinary();
   } catch (error) {
     console.error(`Failed to install binary: ${error.message}`);
-    console.error("Please report this issue at https://github.com/mpiton/kaizen/issues");
+    console.error("Please report this issue at https://github.com/kzn-tools/kaizen/issues");
     process.exit(1);
   }
 })();

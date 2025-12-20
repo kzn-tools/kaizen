@@ -11,7 +11,7 @@ use std::path::Path;
 use std::os::unix::fs::PermissionsExt;
 
 const DEFAULT_CONFIG: &str = r#"# Kaizen configuration file
-# See https://github.com/mpiton/kaizen for documentation
+# See https://github.com/kzn-tools/kaizen for documentation
 
 # File patterns to include in analysis
 # include = ["src/**/*.ts", "src/**/*.tsx"]

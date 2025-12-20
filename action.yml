@@ -1,5 +1,5 @@
 name: 'Kaizen Security Scanner'
-author: 'mpiton'
+author: 'kzn-tools'
 description: 'Ultra-fast JavaScript/TypeScript static analyzer with security focus'
 
 branding:

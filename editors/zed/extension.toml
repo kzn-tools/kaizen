@@ -4,7 +4,7 @@ version = "0.1.0"
 schema_version = 1
 authors = ["mpiton <contact@mpiton.dev>"]
 description = "Ultra-fast JavaScript/TypeScript static analyzer"
-repository = "https://github.com/mpiton/kaizen"
+repository = "https://github.com/kzn-tools/kaizen"
 
 [lib]
 kind = "Rust"

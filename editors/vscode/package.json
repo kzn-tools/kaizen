@@ -7,7 +7,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mpiton/kaizen"
+    "url": "https://github.com/kzn-tools/kaizen"
   },
   "engines": {
     "vscode": "^1.75.0"

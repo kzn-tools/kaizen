@@ -1,6 +1,6 @@
 # Kaizen
 
-[![CI](https://github.com/mpiton/kaizen/actions/workflows/ci.yml/badge.svg)](https://github.com/mpiton/kaizen/actions/workflows/ci.yml)
+[![CI](https://github.com/kzn-tools/kaizen/actions/workflows/ci.yml/badge.svg)](https://github.com/kzn-tools/kaizen/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Ultra-fast JavaScript/TypeScript static analyzer written in Rust with security-focused rules and taint analysis.
@@ -38,7 +38,7 @@ cargo install kaizen-cli
 ### From Source
 
 ```bash
-git clone https://github.com/mpiton/kaizen.git
+git clone https://github.com/kzn-tools/kaizen.git
 cd kaizen
 cargo install --path crates/kaizen-cli
 ```
@@ -172,7 +172,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run Kaizen
-        uses: mpiton/kaizen@main
+        uses: kzn-tools/kaizen@main
         with:
           path: './src'
           severity: 'warning'
@@ -325,7 +325,7 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
 **Quick setup:**
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/kaizen.git
+git clone https://github.com/kzn-tools/kaizen.git
 cd kaizen
 ./scripts/setup-hooks.sh  # Install pre-commit hooks
 cargo build

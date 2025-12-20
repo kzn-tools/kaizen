@@ -12,7 +12,7 @@ Thank you for your interest in contributing to Kaizen! This document provides gu
 1. Fork the repository
 2. Clone your fork:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/kaizen.git
+   git clone https://github.com/kzn-tools/kaizen.git
    cd kaizen
    ```
 3. Set up the development environment:
