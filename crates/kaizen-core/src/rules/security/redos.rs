@@ -23,20 +23,25 @@ declare_rule!(
     examples = "// Bad\nconst re = /(a+)+$/;\nconst re = new RegExp('(.*)+b');\n\n// Good\nconst re = /^[a-z]+$/;\nconst re = /\\d{2,4}/;"
 );
 
+// INVARIANT: These regex patterns are compile-time constants, validated by tests
 static NESTED_QUANTIFIERS: LazyLock<RustRegex> = LazyLock::new(|| {
-    RustRegex::new(r"\([^)]*[+*][^)]*\)[+*?]|\([^)]*[+*][^)]*\)\{").expect("Invalid regex pattern")
+    RustRegex::new(r"\([^)]*[+*][^)]*\)[+*?]|\([^)]*[+*][^)]*\)\{")
+        .expect("NESTED_QUANTIFIERS regex is invalid - this is a bug")
 });
 
 static OVERLAPPING_ALTERNATION: LazyLock<RustRegex> = LazyLock::new(|| {
     RustRegex::new(r"\(\.\|[\[\]\\sS]+\)[+*]|\(\[\^?\]?\][^]]*\]\|\[\^?\]?\][^]]*\]\)[+*]")
-        .expect("Invalid regex pattern")
+        .expect("OVERLAPPING_ALTERNATION regex is invalid - this is a bug")
 });
 
-static STAR_PLUS_GROUPS: LazyLock<RustRegex> =
-    LazyLock::new(|| RustRegex::new(r"\(\.\*\)[+*]|\(\.\+\)[+*]").expect("Invalid regex pattern"));
+static STAR_PLUS_GROUPS: LazyLock<RustRegex> = LazyLock::new(|| {
+    RustRegex::new(r"\(\.\*\)[+*]|\(\.\+\)[+*]")
+        .expect("STAR_PLUS_GROUPS regex is invalid - this is a bug")
+});
 
 static NESTED_GROUPS_WITH_QUANTIFIERS: LazyLock<RustRegex> = LazyLock::new(|| {
-    RustRegex::new(r"\([^)]*\([^)]*[+*]\)[^)]*\)[+*]").expect("Invalid regex pattern")
+    RustRegex::new(r"\([^)]*\([^)]*[+*]\)[^)]*\)[+*]")
+        .expect("NESTED_GROUPS_WITH_QUANTIFIERS regex is invalid - this is a bug")
 });
 
 fn is_redos_vulnerable(pattern: &str) -> Option<&'static str> {
@@ -72,7 +77,7 @@ impl Rule for ReDoS {
         let ctx = VisitorContext::new(file);
         let mut visitor = ReDoSVisitor {
             diagnostics: Vec::new(),
-            file_path: file.metadata().filename.clone(),
+            file_path: &file.metadata().filename,
             ctx: &ctx,
         };
 
@@ -83,7 +88,7 @@ impl Rule for ReDoS {
 
 struct ReDoSVisitor<'a> {
     diagnostics: Vec<Diagnostic>,
-    file_path: String,
+    file_path: &'a str,
     ctx: &'a VisitorContext<'a>,
 }
 
@@ -95,7 +100,7 @@ impl ReDoSVisitor<'_> {
                 "S021",
                 Severity::Warning,
                 format!("Potential ReDoS vulnerability: {}", reason),
-                &self.file_path,
+                self.file_path,
                 line,
                 column,
             )
@@ -119,18 +124,20 @@ impl ReDoSVisitor<'_> {
             return;
         };
 
-        if let Some(first_arg) = args.first() {
-            let pattern = match first_arg.expr.as_ref() {
-                Expr::Lit(Lit::Str(s)) => s.value.to_string(),
-                Expr::Tpl(tpl) if tpl.exprs.is_empty() => tpl
-                    .quasis
-                    .first()
-                    .map(|q| q.raw.to_string())
-                    .unwrap_or_default(),
-                _ => return,
-            };
+        let Some(first_arg) = args.first() else {
+            return;
+        };
 
-            self.check_pattern(&pattern, node.span);
+        match first_arg.expr.as_ref() {
+            Expr::Lit(Lit::Str(s)) => {
+                self.check_pattern(s.value.as_ref(), node.span);
+            }
+            Expr::Tpl(tpl) if tpl.exprs.is_empty() => {
+                if let Some(quasi) = tpl.quasis.first() {
+                    self.check_pattern(quasi.raw.as_ref(), node.span);
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -156,6 +163,14 @@ mod tests {
         let file = ParsedFile::from_source("test.js", code);
         let rule = ReDoS::new();
         rule.check(&file)
+    }
+
+    #[test]
+    fn regex_patterns_compile() {
+        let _ = NESTED_QUANTIFIERS.is_match("");
+        let _ = OVERLAPPING_ALTERNATION.is_match("");
+        let _ = STAR_PLUS_GROUPS.is_match("");
+        let _ = NESTED_GROUPS_WITH_QUANTIFIERS.is_match("");
     }
 
     #[test]
