@@ -21,6 +21,7 @@ pub enum TaintSinkCategory {
     FileSystem,
     PathTraversal,
     NetworkRequest,
+    PrototypePollution,
 }
 
 impl TaintSinkCategory {
@@ -33,6 +34,7 @@ impl TaintSinkCategory {
             TaintSinkCategory::FileSystem => "file_system",
             TaintSinkCategory::PathTraversal => "path_traversal",
             TaintSinkCategory::NetworkRequest => "network_request",
+            TaintSinkCategory::PrototypePollution => "prototype_pollution",
         }
     }
 }
@@ -154,6 +156,7 @@ impl TaintSinksRegistry {
         registry.register_xss_sinks();
         registry.register_file_system_sinks();
         registry.register_network_sinks();
+        registry.register_prototype_pollution_sinks();
         registry
     }
 
@@ -492,6 +495,58 @@ impl TaintSinksRegistry {
                 Some(method),
                 TaintSinkCategory::NetworkRequest,
                 "HTTPS request",
+                vec![0],
+            ));
+        }
+    }
+
+    fn register_prototype_pollution_sinks(&mut self) {
+        self.register_pattern(TaintSinkPattern::builtin(
+            vec!["Object"],
+            Some("assign"),
+            TaintSinkCategory::PrototypePollution,
+            "Object.assign with untrusted source",
+            vec![1],
+        ));
+
+        let lodash_objects = ["_", "lodash"];
+        let merge_methods = [
+            "merge",
+            "mergeWith",
+            "defaultsDeep",
+            "extend",
+            "zipObjectDeep",
+        ];
+        for obj in lodash_objects {
+            for method in merge_methods {
+                self.register_pattern(TaintSinkPattern::builtin(
+                    vec![obj],
+                    Some(method),
+                    TaintSinkCategory::PrototypePollution,
+                    "Lodash merge with untrusted source",
+                    vec![1],
+                ));
+            }
+        }
+
+        let merge_objects = ["merge", "deepmerge", "deepMerge"];
+        for obj in merge_objects {
+            self.register_pattern(TaintSinkPattern::builtin(
+                vec![obj],
+                None,
+                TaintSinkCategory::PrototypePollution,
+                "Deep merge with untrusted source",
+                vec![1],
+            ));
+        }
+
+        let generic_merge_methods = ["merge", "extend", "assign", "defaults"];
+        for method in generic_merge_methods {
+            self.register_pattern(TaintSinkPattern::builtin(
+                vec!["obj"],
+                Some(method),
+                TaintSinkCategory::PrototypePollution,
+                "Object merge with untrusted source",
                 vec![0],
             ));
         }
@@ -915,6 +970,37 @@ mod tests {
             TaintSinkCategory::NetworkRequest.as_str(),
             "network_request"
         );
+        assert_eq!(
+            TaintSinkCategory::PrototypePollution.as_str(),
+            "prototype_pollution"
+        );
+    }
+
+    #[test]
+    fn object_assign_is_taint_sink() {
+        let registry = registry();
+        let result = registry.is_taint_sink(&["Object".into()], Some("assign"));
+        assert!(result.is_some());
+        let m = result.unwrap();
+        assert_eq!(m.pattern.category, TaintSinkCategory::PrototypePollution);
+    }
+
+    #[test]
+    fn lodash_merge_is_taint_sink() {
+        let registry = registry();
+        let result = registry.is_taint_sink(&["_".into()], Some("merge"));
+        assert!(result.is_some());
+        let m = result.unwrap();
+        assert_eq!(m.pattern.category, TaintSinkCategory::PrototypePollution);
+    }
+
+    #[test]
+    fn lodash_defaults_deep_is_taint_sink() {
+        let registry = registry();
+        let result = registry.is_taint_sink(&["lodash".into()], Some("defaultsDeep"));
+        assert!(result.is_some());
+        let m = result.unwrap();
+        assert_eq!(m.pattern.category, TaintSinkCategory::PrototypePollution);
     }
 
     #[test]
