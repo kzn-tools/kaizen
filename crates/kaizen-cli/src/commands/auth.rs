@@ -1,7 +1,7 @@
 //! Auth command - manage authentication for Kaizen
 
 use crate::license::{LicenseSource, load_license};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
 use colored::Colorize;
 use kaizen_core::config::LicenseConfig;
@@ -53,13 +53,20 @@ impl AuthArgs {
         }
 
         let credentials_path = get_credentials_path()?;
-        let credentials_dir = credentials_path.parent().unwrap();
+        let credentials_dir = credentials_path
+            .parent()
+            .ok_or_else(|| anyhow::anyhow!("Invalid credentials path: no parent directory"))?;
 
         if !credentials_dir.exists() {
             fs::create_dir_all(credentials_dir)?;
         }
 
-        fs::write(&credentials_path, api_key)?;
+        fs::write(&credentials_path, api_key).with_context(|| {
+            format!(
+                "Failed to write credentials to {}",
+                credentials_path.display()
+            )
+        })?;
 
         #[cfg(unix)]
         {
@@ -84,7 +91,12 @@ impl AuthArgs {
             return Ok(());
         }
 
-        fs::remove_file(&credentials_path)?;
+        fs::remove_file(&credentials_path).with_context(|| {
+            format!(
+                "Failed to remove credentials from {}",
+                credentials_path.display()
+            )
+        })?;
         println!(
             "{} Credentials removed from {}",
             "✓".green().bold(),
