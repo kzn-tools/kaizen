@@ -64,7 +64,10 @@ impl KaizenLanguageServer {
                 .unwrap_or_default()
         })
         .await
-        .unwrap_or_default();
+        .unwrap_or_else(|e| {
+            warn!(error = %e, "failed to load config from blocking task");
+            LicenseConfig::default()
+        });
 
         let result = load_license_from_sources(&license_config).await;
 
@@ -287,10 +290,13 @@ fn validate_key(key: &str, source: LicenseSource) -> Option<LicenseResult> {
 }
 
 fn get_validation_secret() -> Option<Vec<u8>> {
-    std::env::var("KAIZEN_LICENSE_SECRET")
-        .ok()
-        .filter(|s| !s.is_empty())
-        .map(|s| s.into_bytes())
+    match std::env::var("KAIZEN_LICENSE_SECRET") {
+        Ok(s) if !s.is_empty() => Some(s.into_bytes()),
+        _ => {
+            debug!("KAIZEN_LICENSE_SECRET not set, license validation disabled");
+            None
+        }
+    }
 }
 
 #[cfg(test)]
