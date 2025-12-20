@@ -1,16 +1,20 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use dashmap::DashMap;
+use parking_lot::RwLock;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
-    CodeActionOrCommand, CodeActionParams, CodeActionResponse, DidChangeTextDocumentParams,
-    DidCloseTextDocumentParams, DidOpenTextDocumentParams, InitializeParams, InitializeResult,
-    InitializedParams, MessageType, Url,
+    CodeActionOrCommand, CodeActionParams, CodeActionResponse, DidChangeConfigurationParams,
+    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    InitializeParams, InitializeResult, InitializedParams, MessageType, Url,
 };
 use tower_lsp::{Client, LanguageServer};
-use tracing::{debug, info, instrument};
+use tracing::{debug, info, instrument, warn};
 
+use kaizen_core::config::{LicenseConfig, find_config_file, load_config};
 use kaizen_core::diagnostic::Diagnostic as CoreDiagnostic;
+use kaizen_core::licensing::{LicenseInfo, LicenseValidator, PremiumTier};
 
 use crate::analysis::AnalysisEngine;
 use crate::capabilities::server_capabilities;
@@ -24,6 +28,10 @@ pub struct KaizenLanguageServer {
     analysis_engine: Arc<AnalysisEngine>,
     debouncer: Arc<Debouncer>,
     core_diagnostics: Arc<DashMap<Url, Vec<CoreDiagnostic>>>,
+    workspace_root: Arc<RwLock<Option<PathBuf>>>,
+    license_tier: Arc<RwLock<PremiumTier>>,
+    #[allow(dead_code)]
+    license_info: Arc<RwLock<Option<LicenseInfo>>>,
 }
 
 impl KaizenLanguageServer {
@@ -34,7 +42,36 @@ impl KaizenLanguageServer {
             analysis_engine: Arc::new(AnalysisEngine::new()),
             debouncer: Arc::new(Debouncer::new()),
             core_diagnostics: Arc::new(DashMap::new()),
+            workspace_root: Arc::new(RwLock::new(None)),
+            license_tier: Arc::new(RwLock::new(PremiumTier::Free)),
+            license_info: Arc::new(RwLock::new(None)),
         }
+    }
+
+    pub fn license_tier(&self) -> PremiumTier {
+        *self.license_tier.read()
+    }
+
+    async fn load_license(&self) {
+        let workspace_root = self.workspace_root.read().clone();
+
+        let license_config = tokio::task::spawn_blocking(move || {
+            workspace_root
+                .as_ref()
+                .and_then(|root| find_config_file(root))
+                .and_then(|path| load_config(&path).ok())
+                .map(|config| config.license)
+                .unwrap_or_default()
+        })
+        .await
+        .unwrap_or_default();
+
+        let result = load_license_from_sources(&license_config).await;
+
+        *self.license_tier.write() = result.tier;
+        *self.license_info.write() = result.info;
+
+        info!(tier = %result.tier.as_str(), source = %result.source.as_str(), "license loaded");
     }
 
     async fn analyze_and_publish(&self, uri: &Url) {
@@ -73,9 +110,16 @@ impl KaizenLanguageServer {
 
 #[tower_lsp::async_trait]
 impl LanguageServer for KaizenLanguageServer {
-    #[instrument(skip(self, _params), name = "lsp/initialize")]
-    async fn initialize(&self, _params: InitializeParams) -> Result<InitializeResult> {
+    #[instrument(skip(self, params), name = "lsp/initialize")]
+    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
         info!("initializing LSP server");
+
+        if let Some(root_uri) = params.root_uri {
+            if let Ok(path) = root_uri.to_file_path() {
+                *self.workspace_root.write() = Some(path);
+            }
+        }
+
         Ok(InitializeResult {
             capabilities: server_capabilities(),
             ..Default::default()
@@ -85,8 +129,15 @@ impl LanguageServer for KaizenLanguageServer {
     #[instrument(skip(self, _params), name = "lsp/initialized")]
     async fn initialized(&self, _params: InitializedParams) {
         info!("LSP server initialized");
+
+        self.load_license().await;
+
+        let tier = self.license_tier();
         self.client
-            .log_message(MessageType::INFO, "kaizen-lsp server initialized")
+            .log_message(
+                MessageType::INFO,
+                format!("kaizen-lsp initialized (tier: {})", tier.as_str()),
+            )
             .await;
     }
 
@@ -142,6 +193,104 @@ impl LanguageServer for KaizenLanguageServer {
             Ok(Some(actions))
         }
     }
+
+    #[instrument(skip(self, _params), name = "lsp/workspace/didChangeConfiguration")]
+    async fn did_change_configuration(&self, _params: DidChangeConfigurationParams) {
+        info!("configuration changed, reloading license");
+        self.load_license().await;
+    }
+}
+
+const ENV_VAR_NAME: &str = "KAIZEN_API_KEY";
+const CREDENTIALS_FILE: &str = ".kaizen/credentials";
+
+struct LicenseResult {
+    tier: PremiumTier,
+    info: Option<LicenseInfo>,
+    source: LicenseSource,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum LicenseSource {
+    Environment,
+    Credentials,
+    Config,
+    None,
+}
+
+impl LicenseSource {
+    fn as_str(&self) -> &'static str {
+        match self {
+            LicenseSource::Environment => "environment",
+            LicenseSource::Credentials => "credentials",
+            LicenseSource::Config => "config",
+            LicenseSource::None => "none",
+        }
+    }
+}
+
+async fn load_license_from_sources(config: &LicenseConfig) -> LicenseResult {
+    if let Some(key) = read_from_env() {
+        if let Some(result) = validate_key(&key, LicenseSource::Environment) {
+            return result;
+        }
+    }
+
+    if let Some(key) = read_from_credentials().await {
+        if let Some(result) = validate_key(&key, LicenseSource::Credentials) {
+            return result;
+        }
+    }
+
+    if let Some(key) = config.api_key.as_ref() {
+        if let Some(result) = validate_key(key, LicenseSource::Config) {
+            return result;
+        }
+    }
+
+    LicenseResult {
+        tier: PremiumTier::Free,
+        info: None,
+        source: LicenseSource::None,
+    }
+}
+
+fn read_from_env() -> Option<String> {
+    std::env::var(ENV_VAR_NAME).ok().filter(|s| !s.is_empty())
+}
+
+async fn read_from_credentials() -> Option<String> {
+    let home = dirs::home_dir()?;
+    let credentials_path = home.join(CREDENTIALS_FILE);
+    tokio::fs::read_to_string(credentials_path)
+        .await
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+fn validate_key(key: &str, source: LicenseSource) -> Option<LicenseResult> {
+    let secret = get_validation_secret()?;
+    let validator = LicenseValidator::new(&secret);
+
+    match validator.validate(key) {
+        Ok(info) => Some(LicenseResult {
+            tier: info.tier,
+            info: Some(info),
+            source,
+        }),
+        Err(e) => {
+            warn!(source = %source.as_str(), error = %e, "license validation failed");
+            None
+        }
+    }
+}
+
+fn get_validation_secret() -> Option<Vec<u8>> {
+    std::env::var("KAIZEN_LICENSE_SECRET")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .map(|s| s.into_bytes())
 }
 
 #[cfg(test)]
