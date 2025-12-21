@@ -1,5 +1,5 @@
 ---
-source: crates/lynx-core/tests/semantic_tests.rs
+source: crates/kaizen-core/tests/semantic_tests.rs
 expression: snapshot
 ---
 {
@@ -120,7 +120,7 @@ expression: snapshot
       "kind": "Constant",
       "declaration_kind": "Const",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 1
     },
     {
       "name": "b",
@@ -141,7 +141,7 @@ expression: snapshot
       "kind": "Constant",
       "declaration_kind": "Const",
       "is_exported": false,
-      "references_count": 1
+      "references_count": 2
     },
     {
       "name": "count",
@@ -155,35 +155,35 @@ expression: snapshot
       "kind": "Function",
       "declaration_kind": "Function",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 1
     },
     {
       "name": "double",
       "kind": "Constant",
       "declaration_kind": "Const",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 1
     },
     {
       "name": "formatted",
       "kind": "Constant",
       "declaration_kind": "Const",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 1
     },
     {
       "name": "getShadowed",
       "kind": "Constant",
       "declaration_kind": "Const",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 1
     },
     {
       "name": "i",
       "kind": "Variable",
       "declaration_kind": "Let",
       "is_exported": false,
-      "references_count": 1
+      "references_count": 3
     },
     {
       "name": "initial",
@@ -204,7 +204,7 @@ expression: snapshot
       "kind": "Function",
       "declaration_kind": "Function",
       "is_exported": false,
-      "references_count": 1
+      "references_count": 2
     },
     {
       "name": "middle",
@@ -239,14 +239,14 @@ expression: snapshot
       "kind": "Constant",
       "declaration_kind": "Const",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 1
     },
     {
       "name": "outer",
       "kind": "Function",
       "declaration_kind": "Function",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 1
     },
     {
       "name": "prefix",
@@ -267,7 +267,7 @@ expression: snapshot
       "kind": "Constant",
       "declaration_kind": "Const",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 1
     },
     {
       "name": "shadowExample",

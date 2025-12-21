@@ -106,7 +106,7 @@ impl PreferOptionalChainingVisitor {
         };
 
         if self.is_prefix_of(&left_path, &right_path) {
-            let (line, column) = ctx.span_to_location(span);
+            let (line, column, end_line, end_column) = ctx.span_to_range(span);
             let suggested = self.format_path_with_optional_chaining(&right_path);
             let left_str = left_path.join(".");
             let right_str = right_path.join(".");
@@ -122,6 +122,7 @@ impl PreferOptionalChainingVisitor {
                 line,
                 column,
             )
+            .with_end(end_line, end_column)
             .with_suggestion(format!("Replace with '{}'", suggested));
 
             self.diagnostics.push(diagnostic);

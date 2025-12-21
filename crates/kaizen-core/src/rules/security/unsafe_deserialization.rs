@@ -265,7 +265,7 @@ impl AstVisitor for UnsafeDeserializationVisitor<'_> {
             if let Some(args) = &node.args {
                 if let Some(inner_call) = Self::get_first_arg_as_inner_call(args) {
                     if Self::is_json_parse_call(inner_call) {
-                        let (line, column) = self.ctx.span_to_location(node.span);
+                        let (line, column, end_line, end_column) = self.ctx.span_to_range(node.span);
                         let diagnostic = Diagnostic::new(
                             "S022",
                             Severity::Error,
@@ -274,6 +274,7 @@ impl AstVisitor for UnsafeDeserializationVisitor<'_> {
                             line,
                             column,
                         )
+                        .with_end(end_line, end_column)
                         .with_suggestion(
                             "Do not pass deserialized data directly to code execution functions.",
                         );

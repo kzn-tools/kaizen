@@ -68,7 +68,7 @@ impl MaxComplexityVisitor {
 
         let complexity = self.calculate_block_complexity(body);
         if complexity > self.threshold {
-            let (line, column) = ctx.span_to_location(span);
+            let (line, column, end_line, end_column) = ctx.span_to_range(span);
             let func_name = name.unwrap_or("anonymous function");
             let diagnostic = Diagnostic::new(
                 "Q010",
@@ -81,6 +81,7 @@ impl MaxComplexityVisitor {
                 line,
                 column,
             )
+            .with_end(end_line, end_column)
             .with_suggestion(
                 "Consider refactoring this function into smaller, more focused functions"
                     .to_string(),
@@ -102,7 +103,7 @@ impl MaxComplexityVisitor {
         };
 
         if complexity > self.threshold {
-            let (line, column) = ctx.span_to_location(span);
+            let (line, column, end_line, end_column) = ctx.span_to_range(span);
             let diagnostic = Diagnostic::new(
                 "Q010",
                 Severity::Warning,
@@ -114,6 +115,7 @@ impl MaxComplexityVisitor {
                 line,
                 column,
             )
+            .with_end(end_line, end_column)
             .with_suggestion(
                 "Consider refactoring this function into smaller, more focused functions"
                     .to_string(),

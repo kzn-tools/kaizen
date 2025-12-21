@@ -127,7 +127,7 @@ impl AstVisitor for PreferNullishCoalescingVisitor {
             return ControlFlow::Continue(());
         }
 
-        let (line, column) = ctx.span_to_location(node.span);
+        let (line, column, end_line, end_column) = ctx.span_to_range(node.span);
         let left_str = self.get_expr_summary(left);
         let right_str = self.get_expr_summary(right);
 
@@ -142,6 +142,7 @@ impl AstVisitor for PreferNullishCoalescingVisitor {
             line,
             column,
         )
+        .with_end(end_line, end_column)
         .with_suggestion(format!(
             "Replace with '{} ?? {}' to only fall through on null/undefined",
             left_str, right_str
