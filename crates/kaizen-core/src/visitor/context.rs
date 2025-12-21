@@ -18,25 +18,40 @@ impl<'a> VisitorContext<'a> {
     }
 
     pub fn span_to_location(&self, span: Span) -> (usize, usize) {
-        let source = self.file.source();
-        let lo = span.lo.0 as usize;
+        // swc's BytePos is 1-indexed, so subtract 1 to get actual byte index
+        let lo = span.lo.0.saturating_sub(1) as usize;
+        self.byte_pos_to_location(lo)
+    }
 
-        if source.is_empty() || lo == 0 {
+    pub fn span_to_range(&self, span: Span) -> (usize, usize, usize, usize) {
+        // swc's BytePos is 1-indexed, so subtract 1 to get actual byte index
+        let lo = span.lo.0.saturating_sub(1) as usize;
+        let hi = span.hi.0.saturating_sub(1) as usize;
+        let (start_line, start_col) = self.byte_pos_to_location(lo);
+        let (end_line, end_col) = self.byte_pos_to_location(hi);
+        (start_line, start_col, end_line, end_col)
+    }
+
+    fn byte_pos_to_location(&self, pos: usize) -> (usize, usize) {
+        let source = self.file.source();
+
+        if source.is_empty() || pos == 0 {
             return (1, 1);
         }
 
-        let prefix = &source[..lo.min(source.len())];
+        let prefix = &source[..pos.min(source.len())];
         let line = prefix.matches('\n').count() + 1;
         let last_newline = prefix.rfind('\n').map(|i| i + 1).unwrap_or(0);
-        let column = lo - last_newline + 1;
+        let column = pos - last_newline + 1;
 
         (line, column)
     }
 
     pub fn get_source_text(&self, span: Span) -> Option<&str> {
         let source = self.file.source();
-        let lo = span.lo.0 as usize;
-        let hi = span.hi.0 as usize;
+        // swc's BytePos is 1-indexed, so subtract 1 to get actual byte index
+        let lo = span.lo.0.saturating_sub(1) as usize;
+        let hi = span.hi.0.saturating_sub(1) as usize;
 
         if lo <= hi && hi <= source.len() {
             Some(&source[lo..hi])
@@ -64,8 +79,9 @@ mod tests {
         let parsed = ParsedFile::from_source("test.js", code);
         let ctx = VisitorContext::new(&parsed);
 
+        // BytePos is 1-indexed: BytePos(1) = byte index 0
         let (line, col) =
-            ctx.span_to_location(Span::new(swc_common::BytePos(0), swc_common::BytePos(5)));
+            ctx.span_to_location(Span::new(swc_common::BytePos(1), swc_common::BytePos(6)));
 
         assert_eq!(line, 1);
         assert_eq!(col, 1);
@@ -77,8 +93,9 @@ mod tests {
         let parsed = ParsedFile::from_source("test.js", code);
         let ctx = VisitorContext::new(&parsed);
 
+        // BytePos is 1-indexed: BytePos(14) = byte index 13 = start of line 2
         let (line, _col) =
-            ctx.span_to_location(Span::new(swc_common::BytePos(13), swc_common::BytePos(18)));
+            ctx.span_to_location(Span::new(swc_common::BytePos(14), swc_common::BytePos(19)));
 
         assert_eq!(line, 2);
     }
@@ -89,7 +106,8 @@ mod tests {
         let parsed = ParsedFile::from_source("test.js", code);
         let ctx = VisitorContext::new(&parsed);
 
-        let text = ctx.get_source_text(Span::new(swc_common::BytePos(6), swc_common::BytePos(7)));
+        // BytePos is 1-indexed: BytePos(7) = byte index 6 = 'x'
+        let text = ctx.get_source_text(Span::new(swc_common::BytePos(7), swc_common::BytePos(8)));
 
         assert_eq!(text, Some("x"));
     }

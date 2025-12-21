@@ -1,5 +1,5 @@
 ---
-source: crates/lynx-core/tests/semantic_tests.rs
+source: crates/kaizen-core/tests/semantic_tests.rs
 expression: snapshot
 ---
 {
@@ -48,35 +48,35 @@ expression: snapshot
       "kind": "TypeAlias",
       "declaration_kind": "TypeAlias",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 1
     },
     {
       "name": "User",
       "kind": "TypeAlias",
       "declaration_kind": "TypeAlias",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 7
     },
     {
       "name": "UserRepository",
       "kind": "Class",
       "declaration_kind": "Class",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 1
     },
     {
       "name": "UserRole",
       "kind": "TypeAlias",
       "declaration_kind": "TypeAlias",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 2
     },
     {
       "name": "createUser",
       "kind": "Function",
       "declaration_kind": "Function",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 1
     },
     {
       "name": "email",
@@ -121,5 +121,5 @@ expression: snapshot
       "references_count": 3
     }
   ],
-  "unresolved_count": 2
+  "unresolved_count": 18
 }

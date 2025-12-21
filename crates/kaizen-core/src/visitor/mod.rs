@@ -162,6 +162,17 @@ impl<V: AstVisitor> Visit for Walker<'_, V> {
         }
         node.visit_children_with(self);
     }
+
+    fn visit_jsx_element(&mut self, node: &swc_ecma_ast::JSXElement) {
+        if self.stopped {
+            return;
+        }
+        if let ControlFlow::Break(()) = self.visitor.visit_jsx_element(node, self.ctx) {
+            self.stopped = true;
+            return;
+        }
+        node.visit_children_with(self);
+    }
 }
 
 pub fn walk_ast<V: AstVisitor>(module: &Module, visitor: &mut V, ctx: &VisitorContext) {

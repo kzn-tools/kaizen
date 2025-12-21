@@ -205,6 +205,9 @@ impl ParserBuilder {
             Syntax::Es(EsSyntax {
                 jsx: self.jsx,
                 decorators: self.decorators,
+                // Enable Babel's export-default-from syntax:
+                // export foo from './module' (equivalent to import foo from './module'; export { foo })
+                export_default_from: true,
                 ..Default::default()
             })
         };
@@ -221,17 +224,31 @@ pub struct Parser {
 impl Parser {
     pub fn new() -> Self {
         Self {
-            syntax: Syntax::Es(Default::default()),
+            syntax: Syntax::Es(EsSyntax {
+                // Enable JSX by default - many projects use .js files with JSX
+                jsx: true,
+                // Enable decorators by default - common with legacy Babel projects
+                decorators: true,
+                // Enable Babel's export-default-from syntax by default
+                export_default_from: true,
+                ..Default::default()
+            }),
         }
     }
 
     pub fn for_file(filename: &str) -> Self {
         let language = detect_language(filename);
         match language {
-            Language::JavaScript => Self::new(),
-            Language::TypeScript => Self::builder().typescript(true).build(),
-            Language::Jsx => Self::builder().jsx(true).build(),
-            Language::Tsx => Self::builder().typescript(true).jsx(true).build(),
+            // Enable JSX and decorators for all JavaScript files - common in modern projects
+            Language::JavaScript | Language::Jsx => {
+                Self::builder().jsx(true).decorators(true).build()
+            }
+            Language::TypeScript => Self::builder().typescript(true).decorators(true).build(),
+            Language::Tsx => Self::builder()
+                .typescript(true)
+                .jsx(true)
+                .decorators(true)
+                .build(),
         }
     }
 
@@ -749,5 +766,51 @@ interface User { name: string; }
 
         assert_eq!(parsed.metadata().line_count, 1);
         assert_eq!(parsed.get_line(1), Some("const x = 1;"));
+    }
+
+    // === Babel export-default-from syntax tests ===
+
+    #[test]
+    fn parse_export_default_from_syntax() {
+        // Babel's export-default-from syntax (stage 1 proposal)
+        // Equivalent to: import foo from './module'; export { foo };
+        let parser = Parser::new();
+        let code = "export foo from './module';";
+
+        let result = parser.parse_module(code);
+
+        assert!(
+            result.is_ok(),
+            "Parser should support export-default-from syntax: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn parse_export_default_from_with_builder() {
+        let parser = Parser::builder().jsx(true).build();
+        let code = "export configurationSchema from './configuration-schema';";
+
+        let result = parser.parse_module(code);
+
+        assert!(
+            result.is_ok(),
+            "Parser built with builder should support export-default-from syntax"
+        );
+    }
+
+    #[test]
+    fn parse_export_default_from_in_parsed_file() {
+        let code = r#"
+export configurationSchema from './configuration-schema';
+export { something } from './other';
+"#;
+        let parsed = ParsedFile::from_source("index.js", code);
+
+        assert!(
+            !parsed.metadata().has_errors,
+            "ParsedFile should handle export-default-from without errors"
+        );
+        assert!(parsed.module().is_some());
     }
 }

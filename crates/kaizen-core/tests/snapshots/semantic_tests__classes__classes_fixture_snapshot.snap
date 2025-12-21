@@ -1,5 +1,5 @@
 ---
-source: crates/lynx-core/tests/semantic_tests.rs
+source: crates/kaizen-core/tests/semantic_tests.rs
 expression: snapshot
 ---
 {
@@ -181,83 +181,69 @@ expression: snapshot
       "has_parent": true
     }
   ],
-  "symbol_count": 27,
+  "symbol_count": 26,
   "symbols": [
     {
       "name": "Animal",
       "kind": "Class",
       "declaration_kind": "Class",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 2
     },
     {
       "name": "BankAccount",
       "kind": "Class",
       "declaration_kind": "Class",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 1
     },
     {
       "name": "Circle",
       "kind": "Class",
       "declaration_kind": "Class",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 1
     },
     {
       "name": "Dog",
       "kind": "Class",
       "declaration_kind": "Class",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 1
     },
     {
       "name": "Drawable",
       "kind": "TypeAlias",
       "declaration_kind": "TypeAlias",
       "is_exported": false,
-      "references_count": 0
-    },
-    {
-      "name": "Inner",
-      "kind": "Class",
-      "declaration_kind": "Class",
-      "is_exported": false,
-      "references_count": 0
+      "references_count": 1
     },
     {
       "name": "MathUtils",
       "kind": "Class",
       "declaration_kind": "Class",
       "is_exported": false,
-      "references_count": 2
+      "references_count": 3
     },
     {
       "name": "Outer",
       "kind": "Class",
       "declaration_kind": "Class",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 1
     },
     {
       "name": "Rectangle",
       "kind": "Constant",
       "declaration_kind": "Const",
       "is_exported": false,
-      "references_count": 0
+      "references_count": 1
     },
     {
       "name": "Temperature",
       "kind": "Class",
       "declaration_kind": "Class",
       "is_exported": false,
-      "references_count": 0
-    },
-    {
-      "name": "amount",
-      "kind": "Parameter",
-      "declaration_kind": "Parameter",
-      "is_exported": false,
       "references_count": 1
     },
     {
@@ -266,6 +252,13 @@ expression: snapshot
       "declaration_kind": "Parameter",
       "is_exported": false,
       "references_count": 1
+    },
+    {
+      "name": "amount",
+      "kind": "Parameter",
+      "declaration_kind": "Parameter",
+      "is_exported": false,
+      "references_count": 2
     },
     {
       "name": "breed",

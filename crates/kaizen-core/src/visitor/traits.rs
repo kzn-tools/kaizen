@@ -3,8 +3,8 @@
 use std::ops::ControlFlow;
 
 use swc_ecma_ast::{
-    ArrowExpr, AssignExpr, BinExpr, CallExpr, ClassDecl, FnDecl, Function, Ident, MemberExpr,
-    NewExpr, Regex, UpdateExpr, VarDecl,
+    ArrowExpr, AssignExpr, BinExpr, CallExpr, ClassDecl, FnDecl, Function, Ident, JSXElement,
+    MemberExpr, NewExpr, Regex, UpdateExpr, VarDecl,
 };
 
 use super::context::VisitorContext;
@@ -59,6 +59,10 @@ pub trait AstVisitor {
     }
 
     fn visit_regex(&mut self, _node: &Regex, _ctx: &VisitorContext) -> ControlFlow<()> {
+        ControlFlow::Continue(())
+    }
+
+    fn visit_jsx_element(&mut self, _node: &JSXElement, _ctx: &VisitorContext) -> ControlFlow<()> {
         ControlFlow::Continue(())
     }
 }

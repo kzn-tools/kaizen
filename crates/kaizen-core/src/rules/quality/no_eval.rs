@@ -60,7 +60,7 @@ impl NoEvalVisitor {
         span: swc_common::Span,
         ctx: &VisitorContext,
     ) {
-        let (line, column) = ctx.span_to_location(span);
+        let (line, column, end_line, end_column) = ctx.span_to_range(span);
         let diagnostic = Diagnostic::new(
             "Q034",
             Severity::Warning,
@@ -69,6 +69,7 @@ impl NoEvalVisitor {
             line,
             column,
         )
+        .with_end(end_line, end_column)
         .with_suggestion(suggestion);
 
         self.diagnostics.push(diagnostic);

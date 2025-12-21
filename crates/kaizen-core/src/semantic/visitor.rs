@@ -62,8 +62,42 @@ impl ScopeBuilder {
             .create_scope(ScopeKind::Global, None, module.span);
         self.current_scope = Some(global_scope);
 
+        // First pass: hoist function declarations (but not their bodies)
+        // JavaScript hoists function declarations to the top of their containing scope
+        for item in &module.body {
+            self.hoist_module_item(item);
+        }
+
+        // Second pass: visit all items normally
         for item in &module.body {
             self.visit_module_item(item);
+        }
+    }
+
+    /// Hoist function declarations from a module item (first pass)
+    fn hoist_module_item(&mut self, item: &ModuleItem) {
+        match item {
+            ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
+                if let Decl::Fn(fn_decl) = &export_decl.decl {
+                    self.declare_symbol(
+                        &fn_decl.ident.sym,
+                        SymbolKind::Function,
+                        DeclarationKind::Function,
+                        fn_decl.ident.span,
+                        true,
+                    );
+                }
+            }
+            ModuleItem::Stmt(Stmt::Decl(Decl::Fn(fn_decl))) => {
+                self.declare_symbol(
+                    &fn_decl.ident.sym,
+                    SymbolKind::Function,
+                    DeclarationKind::Function,
+                    fn_decl.ident.span,
+                    false,
+                );
+            }
+            _ => {}
         }
     }
 
@@ -137,6 +171,25 @@ impl ScopeBuilder {
                     }
                 }
             }
+            ModuleDecl::ExportDefaultExpr(export_expr) => {
+                // Handle `export default expr` (e.g., `export default opts => new Foo(opts)`)
+                self.visit_expr(&export_expr.expr);
+            }
+            ModuleDecl::ExportNamed(named_export) => {
+                // Handle `export { foo }` and `export { foo as bar }`
+                // Only visit specifiers when there's no source module (local re-exports)
+                // For `export { foo } from 'module'`, we don't need to visit local references
+                if named_export.src.is_none() {
+                    for specifier in &named_export.specifiers {
+                        if let swc_ecma_ast::ExportSpecifier::Named(named) = specifier {
+                            // The `orig` is the local variable being exported
+                            if let swc_ecma_ast::ModuleExportName::Ident(ident) = &named.orig {
+                                self.visit_ident_reference(ident);
+                            }
+                        }
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -146,15 +199,23 @@ impl ScopeBuilder {
             Stmt::Decl(decl) => self.visit_decl(decl, false),
             Stmt::Block(block) => self.visit_block_stmt(block),
             Stmt::If(if_stmt) => {
+                self.visit_expr(&if_stmt.test);
                 self.visit_stmt(&if_stmt.cons);
                 if let Some(alt) = &if_stmt.alt {
                     self.visit_stmt(alt);
                 }
             }
+            Stmt::Throw(throw_stmt) => {
+                self.visit_expr(&throw_stmt.arg);
+            }
             Stmt::For(for_stmt) => self.visit_for_stmt(for_stmt),
             Stmt::ForIn(for_in) => self.visit_for_in_stmt(for_in),
             Stmt::ForOf(for_of) => self.visit_for_of_stmt(for_of),
             Stmt::While(while_stmt) => self.visit_while_stmt(while_stmt),
+            Stmt::DoWhile(do_while) => {
+                self.visit_stmt(&do_while.body);
+                self.visit_expr(&do_while.test);
+            }
             Stmt::Switch(switch_stmt) => self.visit_switch_stmt(switch_stmt),
             Stmt::Try(try_stmt) => self.visit_try_stmt(try_stmt),
             Stmt::With(with_stmt) => {
@@ -202,6 +263,23 @@ impl ScopeBuilder {
                     ts_interface.id.span,
                     is_exported,
                 );
+                // Visit type parameters (e.g., `interface Foo<T extends Bar>`)
+                if let Some(type_params) = &ts_interface.type_params {
+                    self.visit_ts_type_param_decl(type_params);
+                }
+                // Visit extended interfaces (e.g., `interface Foo extends Bar, Baz<T>`)
+                for extends in &ts_interface.extends {
+                    self.visit_expr(&extends.expr);
+                    if let Some(type_args) = &extends.type_args {
+                        for arg in &type_args.params {
+                            self.visit_ts_type(arg);
+                        }
+                    }
+                }
+                // Visit interface body members to track type references
+                for member in &ts_interface.body.body {
+                    self.visit_ts_type_element(member);
+                }
             }
             Decl::TsTypeAlias(ts_type_alias) => {
                 self.declare_symbol(
@@ -211,6 +289,12 @@ impl ScopeBuilder {
                     ts_type_alias.id.span,
                     is_exported,
                 );
+                // Visit type parameters (e.g., constraints like `T extends Foo`)
+                if let Some(type_params) = &ts_type_alias.type_params {
+                    self.visit_ts_type_param_decl(type_params);
+                }
+                // Visit the type annotation to track type references
+                self.visit_ts_type(&ts_type_alias.type_ann);
             }
             Decl::TsEnum(ts_enum) => {
                 self.declare_symbol(
@@ -238,6 +322,30 @@ impl ScopeBuilder {
     }
 
     fn visit_function(&mut self, func: &swc_ecma_ast::Function, name_span: Option<Span>) {
+        // For function overload signatures (no body), still visit types but don't declare params
+        let has_body = func.body.is_some();
+
+        // Visit TypeScript type parameters (e.g., `function foo<T extends Bar>()`)
+        // This is done for both overloads and implementations to track type usage
+        if let Some(type_params) = &func.type_params {
+            self.visit_ts_type_param_decl(type_params);
+        }
+
+        // Visit return type annotation (e.g., `function foo(): ReturnType`)
+        // This is done for both overloads and implementations
+        if let Some(return_type) = &func.return_type {
+            self.visit_ts_type(&return_type.type_ann);
+        }
+
+        // For overload signatures, visit parameter types but don't declare variables
+        if !has_body {
+            for param in &func.params {
+                // Visit type annotations in parameters without declaring variables
+                self.visit_pat_types(&param.pat);
+            }
+            return;
+        }
+
         let span = func
             .body
             .as_ref()
@@ -251,6 +359,10 @@ impl ScopeBuilder {
         self.current_scope = Some(func_scope);
 
         for param in &func.params {
+            // Visit parameter decorators (e.g., @Body(), @Query(), @Path())
+            for decorator in &param.decorators {
+                self.visit_expr(&decorator.expr);
+            }
             self.declare_pat(
                 &param.pat,
                 SymbolKind::Parameter,
@@ -282,6 +394,17 @@ impl ScopeBuilder {
 
     fn visit_class(&mut self, class: &swc_ecma_ast::Class) {
         let parent_scope = self.current_scope;
+
+        // Visit decorators - they are expressions that reference imported symbols
+        for decorator in &class.decorators {
+            self.visit_expr(&decorator.expr);
+        }
+
+        // Visit superclass if present (for inheritance like `class Foo extends Bar`)
+        if let Some(super_class) = &class.super_class {
+            self.visit_expr(super_class);
+        }
+
         let class_scope = self
             .scope_tree
             .create_scope(ScopeKind::Class, parent_scope, class.span);
@@ -290,6 +413,18 @@ impl ScopeBuilder {
         for member in &class.body {
             match member {
                 swc_ecma_ast::ClassMember::Method(method) => {
+                    // Visit method decorators (e.g., @synchronized, @memoize)
+                    for decorator in &method.function.decorators {
+                        self.visit_expr(&decorator.expr);
+                    }
+                    self.visit_function(&method.function, None);
+                }
+                swc_ecma_ast::ClassMember::PrivateMethod(method) => {
+                    // Handle private methods like #privateMethod()
+                    // Visit method decorators
+                    for decorator in &method.function.decorators {
+                        self.visit_expr(&decorator.expr);
+                    }
                     self.visit_function(&method.function, None);
                 }
                 swc_ecma_ast::ClassMember::Constructor(ctor) => {
@@ -303,6 +438,10 @@ impl ScopeBuilder {
                     for param in &ctor.params {
                         match param {
                             swc_ecma_ast::ParamOrTsParamProp::Param(p) => {
+                                // Visit parameter decorators (e.g., @inject(Service))
+                                for decorator in &p.decorators {
+                                    self.visit_expr(&decorator.expr);
+                                }
                                 self.declare_pat(
                                     &p.pat,
                                     SymbolKind::Parameter,
@@ -311,14 +450,35 @@ impl ScopeBuilder {
                                 );
                             }
                             swc_ecma_ast::ParamOrTsParamProp::TsParamProp(ts_param) => {
-                                if let Some(param) = &ts_param.param.as_ident() {
-                                    self.declare_symbol(
-                                        &param.sym,
-                                        SymbolKind::Parameter,
-                                        DeclarationKind::Parameter,
-                                        param.span,
-                                        false,
-                                    );
+                                // Visit TypeScript parameter property decorators
+                                for decorator in &ts_param.decorators {
+                                    self.visit_expr(&decorator.expr);
+                                }
+                                // TypeScript parameter properties (public/private/protected/readonly)
+                                // automatically become class properties. Mark as exported since
+                                // they're implicitly used (assigned to this.name).
+                                match &ts_param.param {
+                                    swc_ecma_ast::TsParamPropParam::Ident(binding_ident) => {
+                                        self.declare_symbol(
+                                            &binding_ident.id.sym,
+                                            SymbolKind::Parameter,
+                                            DeclarationKind::Parameter,
+                                            binding_ident.id.span,
+                                            true, // Mark as "exported" since it becomes a class property
+                                        );
+                                        // Visit TypeScript type annotation
+                                        if let Some(type_ann) = &binding_ident.type_ann {
+                                            self.visit_ts_type(&type_ann.type_ann);
+                                        }
+                                    }
+                                    swc_ecma_ast::TsParamPropParam::Assign(assign_pat) => {
+                                        self.declare_pat(
+                                            &assign_pat.left,
+                                            SymbolKind::Parameter,
+                                            DeclarationKind::Parameter,
+                                            true, // Mark as "exported" since it becomes a class property
+                                        );
+                                    }
                                 }
                             }
                         }
@@ -331,6 +491,32 @@ impl ScopeBuilder {
                     }
 
                     self.current_scope = Some(class_scope);
+                }
+                swc_ecma_ast::ClassMember::ClassProp(prop) => {
+                    // Handle class properties with initializers and type annotations
+                    if let Some(value) = &prop.value {
+                        self.visit_expr(value);
+                    }
+                    // Visit TypeScript type annotation (e.g., `myProp: SomeType`)
+                    if let Some(type_ann) = &prop.type_ann {
+                        self.visit_ts_type(&type_ann.type_ann);
+                    }
+                }
+                swc_ecma_ast::ClassMember::PrivateProp(prop) => {
+                    // Handle private properties like #privateField: Type = value
+                    if let Some(value) = &prop.value {
+                        self.visit_expr(value);
+                    }
+                    // Visit TypeScript type annotation (e.g., `#myProp: SomeType`)
+                    if let Some(type_ann) = &prop.type_ann {
+                        self.visit_ts_type(&type_ann.type_ann);
+                    }
+                }
+                swc_ecma_ast::ClassMember::StaticBlock(block) => {
+                    // Handle static blocks: static { ... }
+                    for stmt in &block.body.stmts {
+                        self.visit_stmt(stmt);
+                    }
                 }
                 _ => {}
             }
@@ -378,6 +564,16 @@ impl ScopeBuilder {
             }
         }
 
+        // Visit test condition (e.g., `i < length`)
+        if let Some(test) = &for_stmt.test {
+            self.visit_expr(test);
+        }
+
+        // Visit update expression (e.g., `++i`)
+        if let Some(update) = &for_stmt.update {
+            self.visit_expr(update);
+        }
+
         self.visit_stmt(&for_stmt.body);
         self.current_scope = parent_scope;
     }
@@ -399,6 +595,9 @@ impl ScopeBuilder {
                 self.declare_pat(&declarator.name, symbol_kind, decl_kind, false);
             }
         }
+
+        // Visit the object being iterated (e.g., `object` in `for (const key in object)`)
+        self.visit_expr(&for_in.right);
 
         self.visit_stmt(&for_in.body);
         self.current_scope = parent_scope;
@@ -422,6 +621,9 @@ impl ScopeBuilder {
             }
         }
 
+        // Visit the iterable (e.g., `items` in `for (const item of items)`)
+        self.visit_expr(&for_of.right);
+
         self.visit_stmt(&for_of.body);
         self.current_scope = parent_scope;
     }
@@ -432,6 +634,9 @@ impl ScopeBuilder {
             self.scope_tree
                 .create_scope(ScopeKind::While, parent_scope, while_stmt.span);
         self.current_scope = Some(while_scope);
+
+        // Visit the condition (e.g., `pos < end` in `while (pos < end)`)
+        self.visit_expr(&while_stmt.test);
 
         self.visit_stmt(&while_stmt.body);
         self.current_scope = parent_scope;
@@ -444,7 +649,14 @@ impl ScopeBuilder {
                 .create_scope(ScopeKind::Switch, parent_scope, switch_stmt.span);
         self.current_scope = Some(switch_scope);
 
+        // Visit the discriminant (e.g., `x` in `switch (x)`)
+        self.visit_expr(&switch_stmt.discriminant);
+
         for case in &switch_stmt.cases {
+            // Visit case test expression (e.g., `FOO` in `case FOO:`)
+            if let Some(test) = &case.test {
+                self.visit_expr(test);
+            }
             for stmt in &case.cons {
                 self.visit_stmt(stmt);
             }
@@ -514,16 +726,17 @@ impl ScopeBuilder {
             }
             swc_ecma_ast::Expr::Arrow(arrow) => self.visit_arrow_expr(arrow),
             swc_ecma_ast::Expr::Fn(fn_expr) => {
-                if let Some(ident) = &fn_expr.ident {
-                    self.declare_symbol(
-                        &ident.sym,
-                        SymbolKind::Function,
-                        DeclarationKind::Function,
-                        ident.span,
-                        false,
-                    );
-                }
+                // Don't declare the function name as a symbol for function expressions.
+                // Function expression names (e.g., `return function foo() {}`) are only
+                // accessible inside the function body for recursion, and are commonly
+                // used just for stack traces. They're not true variable declarations.
                 self.visit_function(&fn_expr.function, fn_expr.ident.as_ref().map(|i| i.span));
+            }
+            swc_ecma_ast::Expr::Class(class_expr) => {
+                // Don't declare the class name as a symbol for class expressions.
+                // Class expression names (e.g., `exports.Foo = class Foo {}`) are only
+                // accessible inside the class body and are commonly used for stack traces.
+                self.visit_class(&class_expr.class);
             }
             swc_ecma_ast::Expr::Call(call) => {
                 if let Some(callee_expr) = call.callee.as_expr() {
@@ -532,12 +745,24 @@ impl ScopeBuilder {
                 for arg in &call.args {
                     self.visit_expr(&arg.expr);
                 }
+                // Visit TypeScript type arguments (e.g., `foo<T>(...)`)
+                if let Some(type_args) = &call.type_args {
+                    for arg in &type_args.params {
+                        self.visit_ts_type(arg);
+                    }
+                }
             }
             swc_ecma_ast::Expr::New(new_expr) => {
                 self.visit_expr(&new_expr.callee);
                 if let Some(args) = &new_expr.args {
                     for arg in args {
                         self.visit_expr(&arg.expr);
+                    }
+                }
+                // Visit TypeScript type arguments (e.g., `new Foo<T>(...)`)
+                if let Some(type_args) = &new_expr.type_args {
+                    for arg in &type_args.params {
+                        self.visit_ts_type(arg);
                     }
                 }
             }
@@ -614,18 +839,6 @@ impl ScopeBuilder {
                     }
                 }
             }
-            swc_ecma_ast::Expr::Class(class_expr) => {
-                if let Some(ident) = &class_expr.ident {
-                    self.declare_symbol(
-                        &ident.sym,
-                        SymbolKind::Class,
-                        DeclarationKind::Class,
-                        ident.span,
-                        false,
-                    );
-                }
-                self.visit_class(&class_expr.class);
-            }
             swc_ecma_ast::Expr::Assign(assign) => {
                 if let swc_ecma_ast::AssignTarget::Simple(
                     swc_ecma_ast::SimpleAssignTarget::Ident(ident),
@@ -682,6 +895,46 @@ impl ScopeBuilder {
             swc_ecma_ast::Expr::OptChain(opt_chain) => {
                 self.visit_opt_chain_base(&opt_chain.base);
             }
+            // TypeScript expressions
+            swc_ecma_ast::Expr::TsAs(ts_as) => {
+                // `foo as Type` - visit the expression and the type
+                self.visit_expr(&ts_as.expr);
+                self.visit_ts_type(&ts_as.type_ann);
+            }
+            swc_ecma_ast::Expr::TsTypeAssertion(assertion) => {
+                // `<Type>foo` - visit the expression and the type
+                self.visit_expr(&assertion.expr);
+                self.visit_ts_type(&assertion.type_ann);
+            }
+            swc_ecma_ast::Expr::TsNonNull(non_null) => {
+                // `foo!` - visit the expression
+                self.visit_expr(&non_null.expr);
+            }
+            swc_ecma_ast::Expr::TsSatisfies(satisfies) => {
+                // `foo satisfies Type` - visit the expression and the type
+                self.visit_expr(&satisfies.expr);
+                self.visit_ts_type(&satisfies.type_ann);
+            }
+            swc_ecma_ast::Expr::TsInstantiation(inst) => {
+                // `foo<Type>` - visit the expression and type arguments
+                self.visit_expr(&inst.expr);
+                for arg in &inst.type_args.params {
+                    self.visit_ts_type(arg);
+                }
+            }
+            swc_ecma_ast::Expr::TsConstAssertion(const_assert) => {
+                // `foo as const` - visit the expression
+                self.visit_expr(&const_assert.expr);
+            }
+            // JSX expressions
+            swc_ecma_ast::Expr::JSXElement(element) => {
+                self.visit_jsx_element(element);
+            }
+            swc_ecma_ast::Expr::JSXFragment(fragment) => {
+                for child in &fragment.children {
+                    self.visit_jsx_element_child(child);
+                }
+            }
             _ => {}
         }
     }
@@ -736,6 +989,11 @@ impl ScopeBuilder {
                 .create_scope(ScopeKind::ArrowFunction, parent_scope, span);
         self.current_scope = Some(arrow_scope);
 
+        // Visit TypeScript type parameters (e.g., `<T extends Bar>() => ...`)
+        if let Some(type_params) = &arrow.type_params {
+            self.visit_ts_type_param_decl(type_params);
+        }
+
         for param in &arrow.params {
             self.declare_pat(
                 param,
@@ -743,6 +1001,11 @@ impl ScopeBuilder {
                 DeclarationKind::Parameter,
                 false,
             );
+        }
+
+        // Visit return type annotation (e.g., `(): ReturnType => ...`)
+        if let Some(return_type) = &arrow.return_type {
+            self.visit_ts_type(&return_type.type_ann);
         }
 
         match &*arrow.body {
@@ -757,6 +1020,168 @@ impl ScopeBuilder {
         }
 
         self.current_scope = parent_scope;
+    }
+
+    fn visit_jsx_element(&mut self, element: &swc_ecma_ast::JSXElement) {
+        // Visit opening element
+        self.visit_jsx_opening_element(&element.opening);
+
+        // Visit children
+        for child in &element.children {
+            self.visit_jsx_element_child(child);
+        }
+    }
+
+    fn visit_jsx_opening_element(&mut self, opening: &swc_ecma_ast::JSXOpeningElement) {
+        // Visit element name (for component references like <MyComponent />)
+        match &opening.name {
+            swc_ecma_ast::JSXElementName::Ident(ident) => {
+                // Only visit if it looks like a component (starts with uppercase)
+                // React components start with uppercase, HTML elements are lowercase
+                if ident.sym.chars().next().is_some_and(|c| c.is_uppercase()) {
+                    self.visit_ident_reference(&ident.clone());
+                }
+            }
+            swc_ecma_ast::JSXElementName::JSXMemberExpr(member) => {
+                // Visit the object part of member expressions like <Foo.Bar />
+                self.visit_jsx_member_expr(member);
+            }
+            swc_ecma_ast::JSXElementName::JSXNamespacedName(_) => {
+                // Namespaced names like <svg:rect /> don't reference JS variables
+            }
+        }
+
+        // Visit attributes
+        for attr in &opening.attrs {
+            match attr {
+                swc_ecma_ast::JSXAttrOrSpread::JSXAttr(attr) => {
+                    if let Some(value) = &attr.value {
+                        self.visit_jsx_attr_value(value);
+                    }
+                }
+                swc_ecma_ast::JSXAttrOrSpread::SpreadElement(spread) => {
+                    self.visit_expr(&spread.expr);
+                }
+            }
+        }
+
+        // Visit type arguments if present
+        if let Some(type_args) = &opening.type_args {
+            for arg in &type_args.params {
+                self.visit_ts_type(arg);
+            }
+        }
+    }
+
+    fn visit_jsx_member_expr(&mut self, member: &swc_ecma_ast::JSXMemberExpr) {
+        match &member.obj {
+            swc_ecma_ast::JSXObject::Ident(ident) => {
+                self.visit_ident_reference(&ident.clone());
+            }
+            swc_ecma_ast::JSXObject::JSXMemberExpr(nested) => {
+                self.visit_jsx_member_expr(nested);
+            }
+        }
+    }
+
+    fn visit_jsx_attr_value(&mut self, value: &swc_ecma_ast::JSXAttrValue) {
+        match value {
+            swc_ecma_ast::JSXAttrValue::Lit(_) => {}
+            swc_ecma_ast::JSXAttrValue::JSXExprContainer(container) => {
+                self.visit_jsx_expr(&container.expr);
+            }
+            swc_ecma_ast::JSXAttrValue::JSXElement(element) => {
+                self.visit_jsx_element(element);
+            }
+            swc_ecma_ast::JSXAttrValue::JSXFragment(fragment) => {
+                for child in &fragment.children {
+                    self.visit_jsx_element_child(child);
+                }
+            }
+        }
+    }
+
+    fn visit_jsx_element_child(&mut self, child: &swc_ecma_ast::JSXElementChild) {
+        match child {
+            swc_ecma_ast::JSXElementChild::JSXText(_) => {}
+            swc_ecma_ast::JSXElementChild::JSXExprContainer(container) => {
+                self.visit_jsx_expr(&container.expr);
+            }
+            swc_ecma_ast::JSXElementChild::JSXSpreadChild(spread) => {
+                self.visit_expr(&spread.expr);
+            }
+            swc_ecma_ast::JSXElementChild::JSXElement(element) => {
+                self.visit_jsx_element(element);
+            }
+            swc_ecma_ast::JSXElementChild::JSXFragment(fragment) => {
+                for child in &fragment.children {
+                    self.visit_jsx_element_child(child);
+                }
+            }
+        }
+    }
+
+    fn visit_jsx_expr(&mut self, expr: &swc_ecma_ast::JSXExpr) {
+        match expr {
+            swc_ecma_ast::JSXExpr::JSXEmptyExpr(_) => {}
+            swc_ecma_ast::JSXExpr::Expr(e) => {
+                self.visit_expr(e);
+            }
+        }
+    }
+
+    /// Visit type annotations in a pattern without declaring variables.
+    /// Used for function overload signatures where we need to track type usage
+    /// but shouldn't declare the parameters as variables.
+    fn visit_pat_types(&mut self, pat: &Pat) {
+        match pat {
+            Pat::Ident(binding_ident) => {
+                if let Some(type_ann) = &binding_ident.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
+                }
+            }
+            Pat::Array(array_pat) => {
+                for elem in array_pat.elems.iter().flatten() {
+                    self.visit_pat_types(elem);
+                }
+                if let Some(type_ann) = &array_pat.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
+                }
+            }
+            Pat::Object(object_pat) => {
+                for prop in &object_pat.props {
+                    match prop {
+                        ObjectPatProp::KeyValue(kv) => {
+                            self.visit_pat_types(&kv.value);
+                        }
+                        ObjectPatProp::Rest(rest) => {
+                            self.visit_pat_types(&rest.arg);
+                        }
+                        ObjectPatProp::Assign(assign) => {
+                            // Visit default value in overload signatures
+                            if let Some(value) = &assign.value {
+                                self.visit_expr(value);
+                            }
+                        }
+                    }
+                }
+                if let Some(type_ann) = &object_pat.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
+                }
+            }
+            Pat::Rest(rest_pat) => {
+                self.visit_pat_types(&rest_pat.arg);
+                if let Some(type_ann) = &rest_pat.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
+                }
+            }
+            Pat::Assign(assign_pat) => {
+                self.visit_pat_types(&assign_pat.left);
+                // Visit default value in overload signatures
+                self.visit_expr(&assign_pat.right);
+            }
+            Pat::Invalid(_) | Pat::Expr(_) => {}
+        }
     }
 
     fn declare_pat(
@@ -775,10 +1200,18 @@ impl ScopeBuilder {
                     binding_ident.id.span,
                     is_exported,
                 );
+                // Visit TypeScript type annotation (e.g., `param: SomeType`)
+                if let Some(type_ann) = &binding_ident.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
+                }
             }
             Pat::Array(array_pat) => {
                 for elem in array_pat.elems.iter().flatten() {
                     self.declare_pat(elem, symbol_kind, decl_kind, is_exported);
+                }
+                // Visit TypeScript type annotation on array pattern
+                if let Some(type_ann) = &array_pat.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
                 }
             }
             Pat::Object(object_pat) => {
@@ -795,18 +1228,32 @@ impl ScopeBuilder {
                                 assign.key.span,
                                 is_exported,
                             );
+                            // Visit default value (e.g., `{ from = required('from') }`)
+                            if let Some(value) = &assign.value {
+                                self.visit_expr(value);
+                            }
                         }
                         ObjectPatProp::Rest(rest) => {
                             self.declare_pat(&rest.arg, symbol_kind, decl_kind, is_exported);
                         }
                     }
                 }
+                // Visit TypeScript type annotation on object pattern
+                if let Some(type_ann) = &object_pat.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
+                }
             }
             Pat::Rest(rest_pat) => {
                 self.declare_pat(&rest_pat.arg, symbol_kind, decl_kind, is_exported);
+                // Visit TypeScript type annotation on rest pattern
+                if let Some(type_ann) = &rest_pat.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
+                }
             }
             Pat::Assign(assign_pat) => {
                 self.declare_pat(&assign_pat.left, symbol_kind, decl_kind, is_exported);
+                // Visit default value (e.g., `[x = defaultValue]`)
+                self.visit_expr(&assign_pat.right);
             }
             Pat::Invalid(_) | Pat::Expr(_) => {}
         }
@@ -820,6 +1267,11 @@ impl ScopeBuilder {
         span: Span,
         is_exported: bool,
     ) {
+        // Skip if already declared (e.g., from hoisting pass)
+        if self.declaration_spans.contains(&span) {
+            return;
+        }
+
         let scope = if decl_kind == DeclarationKind::Var {
             self.find_hoisting_scope()
         } else {
@@ -866,6 +1318,219 @@ impl ScopeBuilder {
         }
 
         current
+    }
+
+    /// Visit TypeScript type annotations to track type references
+    fn visit_ts_type(&mut self, ts_type: &swc_ecma_ast::TsType) {
+        match ts_type {
+            swc_ecma_ast::TsType::TsTypeRef(type_ref) => {
+                // Handle type references like `Branded<...>` or `Foo`
+                if let swc_ecma_ast::TsEntityName::Ident(ident) = &type_ref.type_name {
+                    self.visit_ident_reference(ident);
+                } else if let swc_ecma_ast::TsEntityName::TsQualifiedName(qualified) =
+                    &type_ref.type_name
+                {
+                    // For qualified names like `Namespace.Type`, visit the rightmost identifier
+                    self.visit_ts_entity_name(&swc_ecma_ast::TsEntityName::TsQualifiedName(
+                        qualified.clone(),
+                    ));
+                }
+                // Visit type arguments (e.g., the `T` in `Array<T>`)
+                if let Some(type_params) = &type_ref.type_params {
+                    for param in &type_params.params {
+                        self.visit_ts_type(param);
+                    }
+                }
+            }
+            swc_ecma_ast::TsType::TsArrayType(arr) => {
+                self.visit_ts_type(&arr.elem_type);
+            }
+            swc_ecma_ast::TsType::TsTupleType(tuple) => {
+                for elem in &tuple.elem_types {
+                    self.visit_ts_type(&elem.ty);
+                }
+            }
+            swc_ecma_ast::TsType::TsUnionOrIntersectionType(union_or_intersection) => {
+                match union_or_intersection {
+                    swc_ecma_ast::TsUnionOrIntersectionType::TsUnionType(union) => {
+                        for ty in &union.types {
+                            self.visit_ts_type(ty);
+                        }
+                    }
+                    swc_ecma_ast::TsUnionOrIntersectionType::TsIntersectionType(intersection) => {
+                        for ty in &intersection.types {
+                            self.visit_ts_type(ty);
+                        }
+                    }
+                }
+            }
+            swc_ecma_ast::TsType::TsParenthesizedType(paren) => {
+                self.visit_ts_type(&paren.type_ann);
+            }
+            swc_ecma_ast::TsType::TsOptionalType(opt) => {
+                self.visit_ts_type(&opt.type_ann);
+            }
+            swc_ecma_ast::TsType::TsRestType(rest) => {
+                self.visit_ts_type(&rest.type_ann);
+            }
+            swc_ecma_ast::TsType::TsConditionalType(cond) => {
+                self.visit_ts_type(&cond.check_type);
+                self.visit_ts_type(&cond.extends_type);
+                self.visit_ts_type(&cond.true_type);
+                self.visit_ts_type(&cond.false_type);
+            }
+            swc_ecma_ast::TsType::TsMappedType(mapped) => {
+                if let Some(name_type) = &mapped.name_type {
+                    self.visit_ts_type(name_type);
+                }
+                if let Some(type_ann) = &mapped.type_ann {
+                    self.visit_ts_type(type_ann);
+                }
+            }
+            swc_ecma_ast::TsType::TsTypeLit(type_lit) => {
+                for member in &type_lit.members {
+                    self.visit_ts_type_element(member);
+                }
+            }
+            swc_ecma_ast::TsType::TsFnOrConstructorType(fn_or_ctor) => match fn_or_ctor {
+                swc_ecma_ast::TsFnOrConstructorType::TsFnType(fn_type) => {
+                    for param in &fn_type.params {
+                        self.visit_ts_fn_param(param);
+                    }
+                    self.visit_ts_type(&fn_type.type_ann.type_ann);
+                }
+                swc_ecma_ast::TsFnOrConstructorType::TsConstructorType(ctor_type) => {
+                    for param in &ctor_type.params {
+                        self.visit_ts_fn_param(param);
+                    }
+                    self.visit_ts_type(&ctor_type.type_ann.type_ann);
+                }
+            },
+            swc_ecma_ast::TsType::TsTypeQuery(query) => match &query.expr_name {
+                swc_ecma_ast::TsTypeQueryExpr::TsEntityName(entity) => {
+                    self.visit_ts_entity_name(entity);
+                }
+                swc_ecma_ast::TsTypeQueryExpr::Import(_) => {}
+            },
+            swc_ecma_ast::TsType::TsIndexedAccessType(indexed) => {
+                self.visit_ts_type(&indexed.obj_type);
+                self.visit_ts_type(&indexed.index_type);
+            }
+            swc_ecma_ast::TsType::TsInferType(_) => {}
+            swc_ecma_ast::TsType::TsImportType(_) => {}
+            swc_ecma_ast::TsType::TsKeywordType(_) => {}
+            swc_ecma_ast::TsType::TsThisType(_) => {}
+            swc_ecma_ast::TsType::TsLitType(_) => {}
+            swc_ecma_ast::TsType::TsTypePredicate(_) => {}
+            swc_ecma_ast::TsType::TsTypeOperator(op) => {
+                self.visit_ts_type(&op.type_ann);
+            }
+        }
+    }
+
+    fn visit_ts_entity_name(&mut self, entity_name: &swc_ecma_ast::TsEntityName) {
+        match entity_name {
+            swc_ecma_ast::TsEntityName::Ident(ident) => {
+                self.visit_ident_reference(ident);
+            }
+            swc_ecma_ast::TsEntityName::TsQualifiedName(qualified) => {
+                // For `A.B.C`, only visit the leftmost identifier `A`
+                self.visit_ts_entity_name(&qualified.left);
+            }
+        }
+    }
+
+    fn visit_ts_type_element(&mut self, element: &swc_ecma_ast::TsTypeElement) {
+        match element {
+            swc_ecma_ast::TsTypeElement::TsPropertySignature(prop) => {
+                if let Some(type_ann) = &prop.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
+                }
+            }
+            swc_ecma_ast::TsTypeElement::TsMethodSignature(method) => {
+                for param in &method.params {
+                    self.visit_ts_fn_param(param);
+                }
+                if let Some(type_ann) = &method.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
+                }
+            }
+            swc_ecma_ast::TsTypeElement::TsIndexSignature(index) => {
+                if let Some(type_ann) = &index.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
+                }
+            }
+            swc_ecma_ast::TsTypeElement::TsCallSignatureDecl(call) => {
+                // Visit type parameters (e.g., `<T extends Foo>` in call signature)
+                if let Some(type_params) = &call.type_params {
+                    self.visit_ts_type_param_decl(type_params);
+                }
+                for param in &call.params {
+                    self.visit_ts_fn_param(param);
+                }
+                if let Some(type_ann) = &call.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
+                }
+            }
+            swc_ecma_ast::TsTypeElement::TsConstructSignatureDecl(ctor) => {
+                // Visit type parameters (e.g., `<T extends Foo>` in construct signature)
+                if let Some(type_params) = &ctor.type_params {
+                    self.visit_ts_type_param_decl(type_params);
+                }
+                for param in &ctor.params {
+                    self.visit_ts_fn_param(param);
+                }
+                if let Some(type_ann) = &ctor.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
+                }
+            }
+            swc_ecma_ast::TsTypeElement::TsGetterSignature(getter) => {
+                if let Some(type_ann) = &getter.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
+                }
+            }
+            swc_ecma_ast::TsTypeElement::TsSetterSignature(setter) => {
+                self.visit_ts_fn_param(&setter.param);
+            }
+        }
+    }
+
+    fn visit_ts_fn_param(&mut self, param: &swc_ecma_ast::TsFnParam) {
+        match param {
+            swc_ecma_ast::TsFnParam::Ident(ident) => {
+                if let Some(type_ann) = &ident.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
+                }
+            }
+            swc_ecma_ast::TsFnParam::Array(arr) => {
+                if let Some(type_ann) = &arr.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
+                }
+            }
+            swc_ecma_ast::TsFnParam::Object(obj) => {
+                if let Some(type_ann) = &obj.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
+                }
+            }
+            swc_ecma_ast::TsFnParam::Rest(rest) => {
+                if let Some(type_ann) = &rest.type_ann {
+                    self.visit_ts_type(&type_ann.type_ann);
+                }
+            }
+        }
+    }
+
+    fn visit_ts_type_param_decl(&mut self, decl: &swc_ecma_ast::TsTypeParamDecl) {
+        for param in &decl.params {
+            // Visit constraint (e.g., `T extends Foo` -> visit `Foo`)
+            if let Some(constraint) = &param.constraint {
+                self.visit_ts_type(constraint);
+            }
+            // Visit default type (e.g., `T = DefaultType` -> visit `DefaultType`)
+            if let Some(default) = &param.default {
+                self.visit_ts_type(default);
+            }
+        }
     }
 }
 

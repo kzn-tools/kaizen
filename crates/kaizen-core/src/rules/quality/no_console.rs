@@ -1,4 +1,10 @@
 //! no-console rule (Q032): Detects usage of console.* calls
+//!
+//! This rule is skipped in:
+//! - Example files (*.example.js, example.js, examples/*)
+//! - CLI tools (cli.js, bin/*, *-cli/*, *-cli.js)
+//! - Scripts (scripts/*)
+//! - Test files
 
 use std::ops::ControlFlow;
 
@@ -9,6 +15,46 @@ use crate::diagnostic::Diagnostic;
 use crate::parser::ParsedFile;
 use crate::rules::{Rule, RuleMetadata, Severity};
 use crate::visitor::{AstVisitor, VisitorContext, walk_ast};
+
+/// Check if the filename indicates a file where console.* is allowed
+fn is_console_allowed_file(filename: &str) -> bool {
+    let lower = filename.to_lowercase();
+
+    // Example files - console is expected for demonstration
+    lower.contains(".example.")
+        || lower.contains("/example.")
+        || lower.ends_with("/example.js")
+        || lower.ends_with("/example.ts")
+        || lower.contains("/examples/")
+        || lower.starts_with("examples/")
+        // CLI tools - console output is expected
+        || lower.contains("/cli.")
+        || lower.ends_with("/cli.js")
+        || lower.ends_with("/cli.ts")
+        || lower.contains("-cli/")
+        || lower.contains("-cli.js")
+        || lower.contains("-cli.ts")
+        || lower.contains("-cli.mjs")
+        || lower.contains("/commands/")
+        || lower.starts_with("commands/")
+        || lower.contains("/bin/")
+        || lower.starts_with("bin/")
+        // Scripts - console output is expected
+        || lower.contains("/scripts/")
+        || lower.starts_with("scripts/")
+        // Dev tools
+        || lower.contains("/dev/")
+        // Test files - console is often used for debugging
+        || lower.contains(".test.")
+        || lower.contains(".spec.")
+        || lower.contains("_test.")
+        || lower.contains("_spec.")
+        || lower.contains("/test/")
+        || lower.contains("/tests/")
+        || lower.contains("/__tests__/")
+        || lower.starts_with("test/")
+        || lower.starts_with("tests/")
+}
 
 declare_rule!(
     NoConsole,
@@ -26,6 +72,11 @@ impl Rule for NoConsole {
     }
 
     fn check(&self, file: &ParsedFile) -> Vec<Diagnostic> {
+        // Skip files where console.* is expected
+        if is_console_allowed_file(&file.metadata().filename) {
+            return Vec::new();
+        }
+
         let Some(module) = file.module() else {
             return Vec::new();
         };
@@ -58,7 +109,7 @@ impl AstVisitor for NoConsoleVisitor {
                             MemberProp::PrivateName(_) => "method".to_string(),
                         };
 
-                        let (line, column) = ctx.span_to_location(node.span);
+                        let (line, column, end_line, end_column) = ctx.span_to_range(node.span);
                         let diagnostic = Diagnostic::new(
                             "Q032",
                             Severity::Info,
@@ -67,6 +118,7 @@ impl AstVisitor for NoConsoleVisitor {
                             line,
                             column,
                         )
+                        .with_end(end_line, end_column)
                         .with_suggestion("Remove console call before production");
 
                         self.diagnostics.push(diagnostic);
@@ -221,5 +273,106 @@ myObj.error("test");
             diagnostics[0].suggestion,
             Some("Remove console call before production".to_string())
         );
+    }
+
+    // === Exception tests for allowed file types ===
+
+    fn run_no_console_with_filename(filename: &str, code: &str) -> Vec<Diagnostic> {
+        let file = ParsedFile::from_source(filename, code);
+        let rule = NoConsole::new();
+        rule.check(&file)
+    }
+
+    #[test]
+    fn allows_console_in_example_file() {
+        let code = "console.log('demo');";
+        let diagnostics = run_no_console_with_filename("src/example.js", code);
+
+        assert!(
+            diagnostics.is_empty(),
+            "console.log should be allowed in example.js files"
+        );
+    }
+
+    #[test]
+    fn allows_console_in_dot_example_file() {
+        let code = "console.log('demo');";
+        let diagnostics = run_no_console_with_filename("src/app.example.js", code);
+
+        assert!(
+            diagnostics.is_empty(),
+            "console.log should be allowed in .example.js files"
+        );
+    }
+
+    #[test]
+    fn allows_console_in_examples_directory() {
+        let code = "console.log('demo');";
+        let diagnostics = run_no_console_with_filename("examples/basic/index.js", code);
+
+        assert!(
+            diagnostics.is_empty(),
+            "console.log should be allowed in examples/ directory"
+        );
+    }
+
+    #[test]
+    fn allows_console_in_cli_file() {
+        let code = "console.log('cli output');";
+        let diagnostics = run_no_console_with_filename("src/cli.js", code);
+
+        assert!(
+            diagnostics.is_empty(),
+            "console.log should be allowed in cli.js files"
+        );
+    }
+
+    #[test]
+    fn allows_console_in_bin_directory() {
+        let code = "console.log('cli output');";
+        let diagnostics = run_no_console_with_filename("bin/my-tool.js", code);
+
+        assert!(
+            diagnostics.is_empty(),
+            "console.log should be allowed in bin/ directory"
+        );
+    }
+
+    #[test]
+    fn allows_console_in_scripts_directory() {
+        let code = "console.log('build script');";
+        let diagnostics = run_no_console_with_filename("scripts/build.js", code);
+
+        assert!(
+            diagnostics.is_empty(),
+            "console.log should be allowed in scripts/ directory"
+        );
+    }
+
+    #[test]
+    fn still_detects_in_regular_source() {
+        let code = "console.log('debug');";
+        let diagnostics = run_no_console_with_filename("src/utils/helper.js", code);
+
+        assert!(
+            !diagnostics.is_empty(),
+            "console.log should still be detected in regular source files"
+        );
+    }
+
+    #[test]
+    fn test_is_console_allowed_file_function() {
+        // Files where console is allowed
+        assert!(is_console_allowed_file("src/example.js"));
+        assert!(is_console_allowed_file("app.example.ts"));
+        assert!(is_console_allowed_file("examples/demo/index.js"));
+        assert!(is_console_allowed_file("src/cli.js"));
+        assert!(is_console_allowed_file("bin/tool"));
+        assert!(is_console_allowed_file("scripts/build.js"));
+
+        // Files where console should be flagged
+        assert!(!is_console_allowed_file("src/utils.js"));
+        assert!(!is_console_allowed_file("lib/helper.ts"));
+        assert!(!is_console_allowed_file("components/Button.jsx"));
     }
 }

@@ -1,3 +1,8 @@
+//! no-unused-imports rule (Q003): Detects imports that are declared but never used
+//!
+//! Exception: In files containing JSX, the `React` import is allowed even if not explicitly
+//! used, as it was required for JSX transformation in React versions before 17.
+
 use std::collections::HashSet;
 
 use swc_ecma_ast::{ExportSpecifier, ModuleDecl, ModuleItem};
@@ -5,6 +10,7 @@ use swc_ecma_ast::{ExportSpecifier, ModuleDecl, ModuleItem};
 use crate::declare_rule;
 use crate::diagnostic::{Diagnostic, Fix};
 use crate::parser::ParsedFile;
+use crate::rules::helpers::file_contains_jsx;
 use crate::rules::{Rule, RuleMetadata, Severity};
 use crate::semantic::symbols::SymbolKind;
 use crate::semantic::visitor::ScopeBuilder;
@@ -35,6 +41,11 @@ impl Rule for NoUnusedImports {
 
         let re_exported_names = collect_re_exported_names(module);
 
+        // In files containing JSX, React import is allowed even if not explicitly used
+        // (required for JSX transformation in React < 17)
+        // We detect JSX presence in the AST rather than relying on file extension
+        let contains_jsx = file_contains_jsx(module, &ctx);
+
         let mut diagnostics = Vec::new();
         let file_path = file.metadata().filename.clone();
 
@@ -48,6 +59,11 @@ impl Rule for NoUnusedImports {
             }
 
             if re_exported_names.contains(&symbol.name) {
+                continue;
+            }
+
+            // Allow React import in files containing JSX (legacy JSX transform requirement)
+            if contains_jsx && symbol.name == "React" {
                 continue;
             }
 
@@ -449,5 +465,80 @@ console.log(baz);
             &fix.kind,
             crate::diagnostic::FixKind::ReplaceWith { new_text } if new_text.is_empty()
         ));
+    }
+
+    // === React import exception tests ===
+
+    fn run_no_unused_imports_jsx(code: &str) -> Vec<Diagnostic> {
+        let file = ParsedFile::from_source("component.jsx", code);
+        let rule = NoUnusedImports::new();
+        rule.check(&file)
+    }
+
+    fn run_no_unused_imports_tsx(code: &str) -> Vec<Diagnostic> {
+        let file = ParsedFile::from_source("component.tsx", code);
+        let rule = NoUnusedImports::new();
+        rule.check(&file)
+    }
+
+    #[test]
+    fn allows_react_import_in_jsx() {
+        let code = r#"
+import React from 'react';
+const element = <div>Hello</div>;
+"#;
+        let diagnostics = run_no_unused_imports_jsx(code);
+
+        assert!(
+            diagnostics.is_empty(),
+            "React import should be allowed in JSX files (legacy JSX transform)"
+        );
+    }
+
+    #[test]
+    fn allows_react_import_in_tsx() {
+        let code = r#"
+import React from 'react';
+const element: JSX.Element = <div>Hello</div>;
+"#;
+        let diagnostics = run_no_unused_imports_tsx(code);
+
+        assert!(
+            diagnostics.is_empty(),
+            "React import should be allowed in TSX files (legacy JSX transform)"
+        );
+    }
+
+    #[test]
+    fn still_detects_other_unused_imports_in_jsx() {
+        let code = r#"
+import React from 'react';
+import { unused } from 'module';
+const element = <div>Hello</div>;
+"#;
+        let diagnostics = run_no_unused_imports_jsx(code);
+
+        assert_eq!(
+            diagnostics.len(),
+            1,
+            "Other unused imports should still be detected in JSX files"
+        );
+        assert!(diagnostics[0].message.contains("unused"));
+    }
+
+    #[test]
+    fn detects_react_import_in_non_jsx_file() {
+        let code = r#"
+import React from 'react';
+console.log('no jsx here');
+"#;
+        let diagnostics = run_no_unused_imports(code);
+
+        assert_eq!(
+            diagnostics.len(),
+            1,
+            "React import should be flagged in non-JSX files"
+        );
+        assert!(diagnostics[0].message.contains("React"));
     }
 }

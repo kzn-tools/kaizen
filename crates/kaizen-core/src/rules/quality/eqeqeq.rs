@@ -1,9 +1,11 @@
 //! eqeqeq rule (Q033): Require === and !== instead of == and !=
+//!
+//! Exception: `== null` and `!= null` are allowed as they check for both null and undefined.
 
 use std::ops::ControlFlow;
 
 use swc_common::Spanned;
-use swc_ecma_ast::{BinExpr, BinaryOp};
+use swc_ecma_ast::{BinExpr, BinaryOp, Expr, Lit};
 
 use crate::declare_rule;
 use crate::diagnostic::{Diagnostic, Fix};
@@ -51,6 +53,16 @@ struct EqeqeqVisitor<'a> {
 }
 
 impl EqeqeqVisitor<'_> {
+    /// Check if this is a null comparison (x == null or x != null).
+    /// These are intentional patterns to check for both null and undefined.
+    fn is_null_comparison(&self, node: &BinExpr) -> bool {
+        Self::is_null_literal(&node.left) || Self::is_null_literal(&node.right)
+    }
+
+    fn is_null_literal(expr: &Expr) -> bool {
+        matches!(expr, Expr::Lit(Lit::Null(_)))
+    }
+
     fn find_operator_position(&self, node: &BinExpr, op_str: &str) -> Option<(usize, usize)> {
         let source = self.ctx.file().source();
         let left_end = node.left.span().hi.0 as usize;
@@ -76,9 +88,14 @@ impl EqeqeqVisitor<'_> {
 
 impl AstVisitor for EqeqeqVisitor<'_> {
     fn visit_bin_expr(&mut self, node: &BinExpr, _ctx: &VisitorContext) -> ControlFlow<()> {
+        // Allow == null and != null as they check for both null and undefined
+        if self.is_null_comparison(node) {
+            return ControlFlow::Continue(());
+        }
+
         match node.op {
             BinaryOp::EqEq => {
-                let (line, column) = self.ctx.span_to_location(node.span);
+                let (line, column, _, _) = self.ctx.span_to_range(node.span);
 
                 let (op_line, op_column) = self
                     .find_operator_position(node, "==")
@@ -98,16 +115,17 @@ impl AstVisitor for EqeqeqVisitor<'_> {
                     Severity::Warning,
                     "Expected '===' but found '=='",
                     &self.file_path,
-                    line,
-                    column,
+                    op_line,
+                    op_column,
                 )
+                .with_end(op_line, op_column + 2)
                 .with_suggestion("Replace '==' with '===' for strict equality")
                 .with_fix(fix);
 
                 self.diagnostics.push(diagnostic);
             }
             BinaryOp::NotEq => {
-                let (line, column) = self.ctx.span_to_location(node.span);
+                let (line, column, _, _) = self.ctx.span_to_range(node.span);
 
                 let (op_line, op_column) = self
                     .find_operator_position(node, "!=")
@@ -127,9 +145,10 @@ impl AstVisitor for EqeqeqVisitor<'_> {
                     Severity::Warning,
                     "Expected '!==' but found '!='",
                     &self.file_path,
-                    line,
-                    column,
+                    op_line,
+                    op_column,
                 )
+                .with_end(op_line, op_column + 2)
                 .with_suggestion("Replace '!=' with '!==' for strict inequality")
                 .with_fix(fix);
 
@@ -297,5 +316,80 @@ function compare(a, b) {
             &fix.kind,
             crate::diagnostic::FixKind::ReplaceWith { new_text } if new_text == "!=="
         ));
+    }
+
+    // === Null comparison exception tests ===
+
+    #[test]
+    fn allows_equals_null() {
+        let diagnostics = run_eqeqeq("if (x == null) {}");
+
+        assert!(
+            diagnostics.is_empty(),
+            "x == null should be allowed (checks for both null and undefined)"
+        );
+    }
+
+    #[test]
+    fn allows_not_equals_null() {
+        let diagnostics = run_eqeqeq("if (x != null) {}");
+
+        assert!(
+            diagnostics.is_empty(),
+            "x != null should be allowed (checks for both null and undefined)"
+        );
+    }
+
+    #[test]
+    fn allows_null_equals_variable() {
+        let diagnostics = run_eqeqeq("if (null == x) {}");
+
+        assert!(
+            diagnostics.is_empty(),
+            "null == x should be allowed (checks for both null and undefined)"
+        );
+    }
+
+    #[test]
+    fn allows_null_not_equals_variable() {
+        let diagnostics = run_eqeqeq("if (null != x) {}");
+
+        assert!(
+            diagnostics.is_empty(),
+            "null != x should be allowed (checks for both null and undefined)"
+        );
+    }
+
+    #[test]
+    fn allows_null_check_in_ternary() {
+        let diagnostics = run_eqeqeq("const result = value != null ? value : defaultValue;");
+
+        assert!(
+            diagnostics.is_empty(),
+            "null check in ternary should be allowed"
+        );
+    }
+
+    #[test]
+    fn allows_null_check_in_logical_expression() {
+        let diagnostics = run_eqeqeq("if (a != null && a.length > 0) {}");
+
+        assert!(
+            diagnostics.is_empty(),
+            "null check in logical expression should be allowed"
+        );
+    }
+
+    #[test]
+    fn still_detects_undefined_comparison() {
+        // undefined comparisons are NOT the same as null comparisons
+        // x == undefined only checks for undefined, not null
+        let diagnostics = run_eqeqeq("if (x == undefined) {}");
+
+        assert_eq!(
+            diagnostics.len(),
+            1,
+            "x == undefined should still be flagged"
+        );
     }
 }

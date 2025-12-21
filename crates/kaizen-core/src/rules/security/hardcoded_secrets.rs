@@ -302,7 +302,8 @@ impl AstVisitor for HardcodedSecretsVisitor<'_> {
                                     if let Some(message) =
                                         check_string_value(&s.value, &prop_name, self.patterns)
                                     {
-                                        let (line, column) = self.ctx.span_to_location(node.span);
+                                        let (line, column, end_line, end_column) =
+                                            self.ctx.span_to_range(node.span);
                                         let diagnostic = Diagnostic::new(
                                             "S010",
                                             Severity::Error,
@@ -311,6 +312,7 @@ impl AstVisitor for HardcodedSecretsVisitor<'_> {
                                             line,
                                             column,
                                         )
+                                        .with_end(end_line, end_column)
                                         .with_suggestion(
                                             "Use environment variables instead: process.env.YOUR_SECRET_NAME",
                                         );
