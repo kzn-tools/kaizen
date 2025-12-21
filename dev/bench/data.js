@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766317634377,
+  "lastUpdate": 1766318488400,
   "repoUrl": "https://github.com/kzn-tools/kaizen",
   "entries": {
     "Kaizen Benchmarks": [
@@ -890,6 +890,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "memory/100_files_retained",
             "value": 36.689,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "goore.csmoviz@gmail.com",
+            "name": "Mathieu",
+            "username": "mpiton"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8fe2b70563db9939740c748d9515bbf22c531d6b",
+          "message": "Merge pull request #20 from kzn-tools/fix/more-parse-errors\n\nfix: enable decorators_before_export and fn_bind in parser",
+          "timestamp": "2025-12-21T12:57:35+01:00",
+          "tree_id": "2c084be0a21d3944a472094e3b029737f1606b6e",
+          "url": "https://github.com/kzn-tools/kaizen/commit/8fe2b70563db9939740c748d9515bbf22c531d6b"
+        },
+        "date": 1766318487528,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "parsing/parse_500_loc",
+            "value": 395320,
+            "unit": "ns"
+          },
+          {
+            "name": "parsing/parse_tsx_component",
+            "value": 66658,
+            "unit": "ns"
+          },
+          {
+            "name": "parsing/parse_typescript_interfaces",
+            "value": 35240,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/quality_rules",
+            "value": 299020,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/security_rules",
+            "value": 304150,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/clean_code",
+            "value": 266210,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/analyze_500_loc",
+            "value": 2119700,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/analyze_100_files",
+            "value": 24993000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/10",
+            "value": 2569700,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/25",
+            "value": 6331100,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/50",
+            "value": 12425000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/100",
+            "value": 25270000,
+            "unit": "ns"
+          },
+          {
+            "name": "latency/p95_500_loc_parse_analyze",
+            "value": 141100,
+            "unit": "ns"
+          },
+          {
+            "name": "latency/p95_per_file_100_files",
+            "value": 164450,
+            "unit": "ns"
+          },
+          {
+            "name": "memory/100_files_retained",
+            "value": 36.533,
             "unit": "ns"
           }
         ]
