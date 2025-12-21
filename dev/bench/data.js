@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766244098181,
+  "lastUpdate": 1766317634377,
   "repoUrl": "https://github.com/kzn-tools/kaizen",
   "entries": {
     "Kaizen Benchmarks": [
@@ -791,6 +791,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "memory/100_files_retained",
             "value": 36.462,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "goore.csmoviz@gmail.com",
+            "name": "Mathieu",
+            "username": "mpiton"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "42c3c2f7e35653c10055798692c100ef73e543e5",
+          "message": "Merge pull request #19 from kzn-tools/fix/reduce-false-positives\n\nfix: reduce false positives in linting rules",
+          "timestamp": "2025-12-21T12:43:38+01:00",
+          "tree_id": "f9d066b791b9d067b5743b3c9aa47b91715f793b",
+          "url": "https://github.com/kzn-tools/kaizen/commit/42c3c2f7e35653c10055798692c100ef73e543e5"
+        },
+        "date": 1766317633984,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "parsing/parse_500_loc",
+            "value": 394840,
+            "unit": "ns"
+          },
+          {
+            "name": "parsing/parse_tsx_component",
+            "value": 66524,
+            "unit": "ns"
+          },
+          {
+            "name": "parsing/parse_typescript_interfaces",
+            "value": 35002,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/quality_rules",
+            "value": 300650,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/security_rules",
+            "value": 304490,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/clean_code",
+            "value": 269940,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/analyze_500_loc",
+            "value": 2129000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/analyze_100_files",
+            "value": 25111000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/10",
+            "value": 2537900,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/25",
+            "value": 6312400,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/50",
+            "value": 12645000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/100",
+            "value": 26112000,
+            "unit": "ns"
+          },
+          {
+            "name": "latency/p95_500_loc_parse_analyze",
+            "value": 140370,
+            "unit": "ns"
+          },
+          {
+            "name": "latency/p95_per_file_100_files",
+            "value": 161550,
+            "unit": "ns"
+          },
+          {
+            "name": "memory/100_files_retained",
+            "value": 36.689,
             "unit": "ns"
           }
         ]
