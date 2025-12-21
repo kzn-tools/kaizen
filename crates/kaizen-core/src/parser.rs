@@ -208,6 +208,12 @@ impl ParserBuilder {
                 // Enable Babel's export-default-from syntax:
                 // export foo from './module' (equivalent to import foo from './module'; export { foo })
                 export_default_from: true,
+                // Allow decorators before export keyword (legacy Babel syntax):
+                // @decorator export class Foo {} instead of export @decorator class Foo {}
+                decorators_before_export: true,
+                // Enable function bind operator (::) - Babel proposal syntax
+                // ::this.method is equivalent to this.method.bind(this)
+                fn_bind: true,
                 ..Default::default()
             })
         };
@@ -231,6 +237,10 @@ impl Parser {
                 decorators: true,
                 // Enable Babel's export-default-from syntax by default
                 export_default_from: true,
+                // Allow decorators before export keyword (legacy Babel syntax)
+                decorators_before_export: true,
+                // Enable function bind operator (::) - Babel proposal syntax
+                fn_bind: true,
                 ..Default::default()
             }),
         }
