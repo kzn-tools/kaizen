@@ -132,13 +132,73 @@ impl<'a> NoUnreachableVisitor<'a> {
             .all(|case| self.case_terminates(case))
     }
 
+    /// Check if a case terminates in a way that makes code after the switch unreachable.
+    /// Only return/throw count here - break just exits the switch but code after is still reachable.
     fn case_terminates(&self, case: &SwitchCase) -> bool {
         for stmt in &case.cons {
-            if self.is_terminating_statement(stmt) {
+            if self.case_stmt_terminates_switch(stmt) {
                 return true;
             }
         }
         false
+    }
+
+    /// Check if a statement in a switch case terminates in a way that makes code after
+    /// the switch unreachable. Only return/throw count - break/continue just exit the switch.
+    fn case_stmt_terminates_switch(&self, stmt: &Stmt) -> bool {
+        match stmt {
+            // return/throw make code after switch unreachable
+            Stmt::Return(_) | Stmt::Throw(_) => true,
+            // break/continue just exit the switch - code after is still reachable
+            Stmt::Break(_) | Stmt::Continue(_) => false,
+            // For if/try/block, check recursively
+            Stmt::If(if_stmt) => self.if_terminates_switch(if_stmt),
+            Stmt::Try(try_stmt) => self.try_terminates_switch(try_stmt),
+            Stmt::Block(block) => self.block_terminates_switch(block),
+            Stmt::Labeled(labeled) => self.case_stmt_terminates_switch(&labeled.body),
+            _ => false,
+        }
+    }
+
+    fn if_terminates_switch(&self, if_stmt: &IfStmt) -> bool {
+        let cons_terminates = match if_stmt.cons.as_ref() {
+            Stmt::Block(block) => self.block_terminates_switch(block),
+            stmt => self.case_stmt_terminates_switch(stmt),
+        };
+
+        if let Some(alt) = &if_stmt.alt {
+            let alt_terminates = match alt.as_ref() {
+                Stmt::Block(block) => self.block_terminates_switch(block),
+                stmt => self.case_stmt_terminates_switch(stmt),
+            };
+            cons_terminates && alt_terminates
+        } else {
+            false
+        }
+    }
+
+    fn try_terminates_switch(&self, try_stmt: &TryStmt) -> bool {
+        if let Some(finalizer) = &try_stmt.finalizer {
+            if self.block_terminates_switch(finalizer) {
+                return true;
+            }
+        }
+
+        let try_terminates = self.block_terminates_switch(&try_stmt.block);
+
+        if let Some(handler) = &try_stmt.handler {
+            let catch_terminates = self.block_terminates_switch(&handler.body);
+            try_terminates && catch_terminates
+        } else {
+            try_terminates
+        }
+    }
+
+    fn block_terminates_switch(&self, block: &BlockStmt) -> bool {
+        block
+            .stmts
+            .iter()
+            .any(|stmt| self.case_stmt_terminates_switch(stmt))
     }
 
     fn try_always_terminates(&self, try_stmt: &TryStmt) -> bool {
@@ -470,6 +530,56 @@ function foo(x) {
 "#;
         let diagnostics = run_rule(code);
         assert!(diagnostics.is_empty());
+    }
+
+    #[test]
+    fn switch_with_break_no_warning() {
+        // break only exits the switch, code after is still reachable
+        let code = r#"
+function foo(x) {
+    let stream;
+    switch (x) {
+        case 1:
+            stream = getStream1();
+            break;
+        case 2:
+            stream = getStream2();
+            break;
+        default:
+            throw new Error("unsupported");
+    }
+    stream.pipe(output);
+}
+"#;
+        let diagnostics = run_rule(code);
+        assert!(
+            diagnostics.is_empty(),
+            "Code after switch with break cases should be reachable"
+        );
+    }
+
+    #[test]
+    fn switch_all_cases_throw_warns() {
+        // All cases throw (not break), so code after is unreachable
+        let code = r#"
+function foo(x) {
+    switch (x) {
+        case 1:
+            throw new Error("case 1");
+        case 2:
+            throw new Error("case 2");
+        default:
+            throw new Error("default");
+    }
+    const y = 3;
+}
+"#;
+        let diagnostics = run_rule(code);
+        assert_eq!(
+            diagnostics.len(),
+            1,
+            "Code after switch where all cases throw should be unreachable"
+        );
     }
 
     #[test]
