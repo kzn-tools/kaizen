@@ -2,6 +2,7 @@
 //!
 //! Provides quality and security rules for analyzing JavaScript/TypeScript code.
 
+pub mod helpers;
 pub mod quality;
 pub mod security;
 

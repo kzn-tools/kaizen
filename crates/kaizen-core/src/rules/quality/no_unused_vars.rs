@@ -13,11 +13,12 @@ use std::collections::{HashMap, HashSet};
 use std::ops::ControlFlow;
 
 use swc_common::Span;
-use swc_ecma_ast::{AssignTarget, JSXElement, SimpleAssignTarget};
+use swc_ecma_ast::{AssignTarget, SimpleAssignTarget};
 
 use crate::declare_rule;
 use crate::diagnostic::Diagnostic;
 use crate::parser::ParsedFile;
+use crate::rules::helpers::file_contains_jsx;
 use crate::rules::{Rule, RuleMetadata, Severity};
 use crate::semantic::scope::{ScopeId, ScopeKind};
 use crate::semantic::symbols::{Symbol, SymbolKind};
@@ -166,25 +167,6 @@ impl Rule for NoUnusedVars {
         }
 
         diagnostics
-    }
-}
-
-/// Check if the module contains any JSX elements
-fn file_contains_jsx(module: &swc_ecma_ast::Module, ctx: &VisitorContext) -> bool {
-    let mut visitor = JsxDetector { found_jsx: false };
-    walk_ast(module, &mut visitor, ctx);
-    visitor.found_jsx
-}
-
-struct JsxDetector {
-    found_jsx: bool,
-}
-
-impl AstVisitor for JsxDetector {
-    fn visit_jsx_element(&mut self, _node: &JSXElement, _ctx: &VisitorContext) -> ControlFlow<()> {
-        self.found_jsx = true;
-        // Stop early - we only need to find one JSX element
-        ControlFlow::Break(())
     }
 }
 

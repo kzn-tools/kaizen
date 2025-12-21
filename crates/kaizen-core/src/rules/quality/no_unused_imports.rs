@@ -4,17 +4,17 @@
 //! used, as it was required for JSX transformation in React versions before 17.
 
 use std::collections::HashSet;
-use std::ops::ControlFlow;
 
-use swc_ecma_ast::{ExportSpecifier, JSXElement, ModuleDecl, ModuleItem};
+use swc_ecma_ast::{ExportSpecifier, ModuleDecl, ModuleItem};
 
 use crate::declare_rule;
 use crate::diagnostic::{Diagnostic, Fix};
 use crate::parser::ParsedFile;
+use crate::rules::helpers::file_contains_jsx;
 use crate::rules::{Rule, RuleMetadata, Severity};
 use crate::semantic::symbols::SymbolKind;
 use crate::semantic::visitor::ScopeBuilder;
-use crate::visitor::{AstVisitor, VisitorContext, walk_ast};
+use crate::visitor::VisitorContext;
 
 declare_rule!(
     NoUnusedImports,
@@ -102,25 +102,6 @@ impl Rule for NoUnusedImports {
         }
 
         diagnostics
-    }
-}
-
-/// Check if the module contains any JSX elements
-fn file_contains_jsx(module: &swc_ecma_ast::Module, ctx: &VisitorContext) -> bool {
-    let mut visitor = JsxDetector { found_jsx: false };
-    walk_ast(module, &mut visitor, ctx);
-    visitor.found_jsx
-}
-
-struct JsxDetector {
-    found_jsx: bool,
-}
-
-impl AstVisitor for JsxDetector {
-    fn visit_jsx_element(&mut self, _node: &JSXElement, _ctx: &VisitorContext) -> ControlFlow<()> {
-        self.found_jsx = true;
-        // Stop early - we only need to find one JSX element
-        ControlFlow::Break(())
     }
 }
 

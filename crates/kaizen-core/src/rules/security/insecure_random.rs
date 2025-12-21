@@ -10,40 +10,9 @@ use swc_ecma_ast::{CallExpr, Callee, Expr, MemberProp};
 use crate::declare_rule;
 use crate::diagnostic::Diagnostic;
 use crate::parser::ParsedFile;
+use crate::rules::helpers::is_test_file;
 use crate::rules::{Rule, RuleMetadata, Severity};
 use crate::visitor::{AstVisitor, VisitorContext, walk_ast};
-
-/// Check if the filename indicates a test file
-fn is_test_file(filename: &str) -> bool {
-    let lower = filename.to_lowercase();
-
-    // Common test file patterns
-    lower.contains(".test.")
-        || lower.contains(".spec.")
-        || lower.contains("_test.")
-        || lower.contains("_spec.")
-        || lower.ends_with(".test.js")
-        || lower.ends_with(".test.ts")
-        || lower.ends_with(".test.jsx")
-        || lower.ends_with(".test.tsx")
-        || lower.ends_with(".spec.js")
-        || lower.ends_with(".spec.ts")
-        || lower.ends_with(".spec.jsx")
-        || lower.ends_with(".spec.tsx")
-        // test.js files (common pattern in some projects)
-        || lower.ends_with("/test.js")
-        || lower.ends_with("/test.mjs")
-        || lower.ends_with("/test.ts")
-        || lower == "test.js"
-        || lower == "test.mjs"
-        || lower == "test.ts"
-        || lower.contains("/test/")
-        || lower.contains("/tests/")
-        || lower.contains("/__tests__/")
-        || lower.contains("/__mocks__/")
-        || lower.starts_with("test/")
-        || lower.starts_with("tests/")
-}
 
 declare_rule!(
     InsecureRandom,
@@ -339,24 +308,5 @@ const b = Math.random();
             !diagnostics.is_empty(),
             "Math.random() should still be detected in production code"
         );
-    }
-
-    #[test]
-    fn test_is_test_file_function() {
-        // Test file patterns
-        assert!(is_test_file("component.test.js"));
-        assert!(is_test_file("component.spec.ts"));
-        assert!(is_test_file("utils_test.js"));
-        assert!(is_test_file("utils_spec.ts"));
-        assert!(is_test_file("src/__tests__/file.js"));
-        assert!(is_test_file("test/helpers.js"));
-        assert!(is_test_file("tests/unit/file.js"));
-        assert!(is_test_file("src/__mocks__/api.js"));
-
-        // Non-test file patterns
-        assert!(!is_test_file("component.js"));
-        assert!(!is_test_file("utils.ts"));
-        assert!(!is_test_file("src/test-utils.js")); // Contains 'test' but not a test file pattern
-        assert!(!is_test_file("testing.js")); // Contains 'test' but not a test file pattern
     }
 }
