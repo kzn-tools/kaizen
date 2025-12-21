@@ -244,13 +244,11 @@ impl Parser {
                 Self::builder().jsx(true).decorators(true).build()
             }
             Language::TypeScript => Self::builder().typescript(true).decorators(true).build(),
-            Language::Tsx => {
-                Self::builder()
-                    .typescript(true)
-                    .jsx(true)
-                    .decorators(true)
-                    .build()
-            }
+            Language::Tsx => Self::builder()
+                .typescript(true)
+                .jsx(true)
+                .decorators(true)
+                .build(),
         }
     }
 

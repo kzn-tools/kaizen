@@ -36,7 +36,9 @@ declare_rule!(
 
 /// Collect parameters that should be ignored because they precede a used parameter.
 /// This implements the ESLint "args: after-used" pattern.
-fn collect_ignored_params(symbols: impl Iterator<Item = impl std::borrow::Borrow<Symbol>>) -> HashSet<Span> {
+fn collect_ignored_params(
+    symbols: impl Iterator<Item = impl std::borrow::Borrow<Symbol>>,
+) -> HashSet<Span> {
     // Group parameters by scope (function)
     let mut params_by_scope: HashMap<ScopeId, Vec<(Span, bool)>> = HashMap::new();
 
@@ -59,9 +61,7 @@ fn collect_ignored_params(symbols: impl Iterator<Item = impl std::borrow::Borrow
         params.sort_by_key(|(span, _)| span.lo.0);
 
         // Find the position of the last used parameter
-        let last_used_idx = params
-            .iter()
-            .rposition(|(_, is_used)| *is_used);
+        let last_used_idx = params.iter().rposition(|(_, is_used)| *is_used);
 
         if let Some(last_idx) = last_used_idx {
             // All parameters before the last used one should be ignored
@@ -560,10 +560,16 @@ if (code !== 0) {
 "#;
         let diagnostics = run_no_unused_vars(code);
 
-        println!("Diagnostics: {:?}", diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>());
+        println!(
+            "Diagnostics: {:?}",
+            diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
+        );
 
         // code IS used in condition and throw - should NOT be flagged
-        assert!(diagnostics.is_empty(), "code should not be flagged as unused");
+        assert!(
+            diagnostics.is_empty(),
+            "code should not be flagged as unused"
+        );
     }
 
     // === React import exception tests ===
@@ -746,9 +752,7 @@ function test(a, b, c) {
         let param_diagnostics: Vec<_> = diagnostics
             .iter()
             .filter(|d| {
-                d.message.contains("'a'")
-                    || d.message.contains("'b'")
-                    || d.message.contains("'c'")
+                d.message.contains("'a'") || d.message.contains("'b'") || d.message.contains("'c'")
             })
             .collect();
 

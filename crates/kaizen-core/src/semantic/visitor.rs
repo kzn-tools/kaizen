@@ -1038,8 +1038,8 @@ impl ScopeBuilder {
             swc_ecma_ast::JSXElementName::Ident(ident) => {
                 // Only visit if it looks like a component (starts with uppercase)
                 // React components start with uppercase, HTML elements are lowercase
-                if ident.sym.chars().next().map_or(false, |c| c.is_uppercase()) {
-                    self.visit_ident_reference(&swc_ecma_ast::Ident::from(ident.clone()));
+                if ident.sym.chars().next().is_some_and(|c| c.is_uppercase()) {
+                    self.visit_ident_reference(&ident.clone());
                 }
             }
             swc_ecma_ast::JSXElementName::JSXMemberExpr(member) => {
@@ -1076,7 +1076,7 @@ impl ScopeBuilder {
     fn visit_jsx_member_expr(&mut self, member: &swc_ecma_ast::JSXMemberExpr) {
         match &member.obj {
             swc_ecma_ast::JSXObject::Ident(ident) => {
-                self.visit_ident_reference(&swc_ecma_ast::Ident::from(ident.clone()));
+                self.visit_ident_reference(&ident.clone());
             }
             swc_ecma_ast::JSXObject::JSXMemberExpr(nested) => {
                 self.visit_jsx_member_expr(nested);
@@ -1327,9 +1327,13 @@ impl ScopeBuilder {
                 // Handle type references like `Branded<...>` or `Foo`
                 if let swc_ecma_ast::TsEntityName::Ident(ident) = &type_ref.type_name {
                     self.visit_ident_reference(ident);
-                } else if let swc_ecma_ast::TsEntityName::TsQualifiedName(qualified) = &type_ref.type_name {
+                } else if let swc_ecma_ast::TsEntityName::TsQualifiedName(qualified) =
+                    &type_ref.type_name
+                {
                     // For qualified names like `Namespace.Type`, visit the rightmost identifier
-                    self.visit_ts_entity_name(&swc_ecma_ast::TsEntityName::TsQualifiedName(qualified.clone()));
+                    self.visit_ts_entity_name(&swc_ecma_ast::TsEntityName::TsQualifiedName(
+                        qualified.clone(),
+                    ));
                 }
                 // Visit type arguments (e.g., the `T` in `Array<T>`)
                 if let Some(type_params) = &type_ref.type_params {
@@ -1388,30 +1392,26 @@ impl ScopeBuilder {
                     self.visit_ts_type_element(member);
                 }
             }
-            swc_ecma_ast::TsType::TsFnOrConstructorType(fn_or_ctor) => {
-                match fn_or_ctor {
-                    swc_ecma_ast::TsFnOrConstructorType::TsFnType(fn_type) => {
-                        for param in &fn_type.params {
-                            self.visit_ts_fn_param(param);
-                        }
-                        self.visit_ts_type(&fn_type.type_ann.type_ann);
+            swc_ecma_ast::TsType::TsFnOrConstructorType(fn_or_ctor) => match fn_or_ctor {
+                swc_ecma_ast::TsFnOrConstructorType::TsFnType(fn_type) => {
+                    for param in &fn_type.params {
+                        self.visit_ts_fn_param(param);
                     }
-                    swc_ecma_ast::TsFnOrConstructorType::TsConstructorType(ctor_type) => {
-                        for param in &ctor_type.params {
-                            self.visit_ts_fn_param(param);
-                        }
-                        self.visit_ts_type(&ctor_type.type_ann.type_ann);
-                    }
+                    self.visit_ts_type(&fn_type.type_ann.type_ann);
                 }
-            }
-            swc_ecma_ast::TsType::TsTypeQuery(query) => {
-                match &query.expr_name {
-                    swc_ecma_ast::TsTypeQueryExpr::TsEntityName(entity) => {
-                        self.visit_ts_entity_name(entity);
+                swc_ecma_ast::TsFnOrConstructorType::TsConstructorType(ctor_type) => {
+                    for param in &ctor_type.params {
+                        self.visit_ts_fn_param(param);
                     }
-                    swc_ecma_ast::TsTypeQueryExpr::Import(_) => {}
+                    self.visit_ts_type(&ctor_type.type_ann.type_ann);
                 }
-            }
+            },
+            swc_ecma_ast::TsType::TsTypeQuery(query) => match &query.expr_name {
+                swc_ecma_ast::TsTypeQueryExpr::TsEntityName(entity) => {
+                    self.visit_ts_entity_name(entity);
+                }
+                swc_ecma_ast::TsTypeQueryExpr::Import(_) => {}
+            },
             swc_ecma_ast::TsType::TsIndexedAccessType(indexed) => {
                 self.visit_ts_type(&indexed.obj_type);
                 self.visit_ts_type(&indexed.index_type);
