@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766318488400,
+  "lastUpdate": 1766320562026,
   "repoUrl": "https://github.com/kzn-tools/kaizen",
   "entries": {
     "Kaizen Benchmarks": [
@@ -989,6 +989,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "memory/100_files_retained",
             "value": 36.533,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "goore.csmoviz@gmail.com",
+            "name": "Mathieu",
+            "username": "mpiton"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0167765ea67429127341ecaa9ec49a301a48c725",
+          "message": "Merge pull request #21 from kzn-tools/fix/q004-switch-false-positive\n\nfix: Q004 no longer flags code after switch with break as unreachable",
+          "timestamp": "2025-12-21T13:32:20+01:00",
+          "tree_id": "9c67c8e2b328ae55437dc9f6df1d04ae03e75cb3",
+          "url": "https://github.com/kzn-tools/kaizen/commit/0167765ea67429127341ecaa9ec49a301a48c725"
+        },
+        "date": 1766320561248,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "parsing/parse_500_loc",
+            "value": 401840,
+            "unit": "ns"
+          },
+          {
+            "name": "parsing/parse_tsx_component",
+            "value": 64950,
+            "unit": "ns"
+          },
+          {
+            "name": "parsing/parse_typescript_interfaces",
+            "value": 34826,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/quality_rules",
+            "value": 326010,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/security_rules",
+            "value": 335760,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/clean_code",
+            "value": 270720,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/analyze_500_loc",
+            "value": 2035499.9999999998,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/analyze_100_files",
+            "value": 26220000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/10",
+            "value": 2593300,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/25",
+            "value": 6454000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/50",
+            "value": 12619000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/100",
+            "value": 25957000,
+            "unit": "ns"
+          },
+          {
+            "name": "latency/p95_500_loc_parse_analyze",
+            "value": 128220,
+            "unit": "ns"
+          },
+          {
+            "name": "latency/p95_per_file_100_files",
+            "value": 169960,
+            "unit": "ns"
+          },
+          {
+            "name": "memory/100_files_retained",
+            "value": 32.215,
             "unit": "ns"
           }
         ]
