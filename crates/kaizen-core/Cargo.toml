@@ -19,9 +19,6 @@ serde_json.workspace = true
 thiserror.workspace = true
 toml.workspace = true
 tracing.workspace = true
-hmac = "0.12"
-sha2 = "0.10"
-base64 = "0.22"
 
 [dev-dependencies]
 insta = { version = "1.42", features = ["json"] }

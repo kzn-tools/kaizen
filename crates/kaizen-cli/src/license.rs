@@ -4,20 +4,24 @@
 //! 1. KAIZEN_API_KEY environment variable
 //! 2. ~/.kaizen/credentials file
 //! 3. kaizen.toml [license] section
+//!
+//! Keys are validated against the Kaizen Cloud API.
 
 use kaizen_core::config::LicenseConfig;
-use kaizen_core::licensing::{LicenseError, LicenseInfo, LicenseValidator, PremiumTier};
+use kaizen_core::licensing::PremiumTier;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
+use std::time::Duration;
 use tracing::debug;
 
 const ENV_VAR_NAME: &str = "KAIZEN_API_KEY";
 const CREDENTIALS_FILE: &str = ".kaizen/credentials";
+const DEFAULT_API_URL: &str = "https://api.kaizen.tools";
+const API_TIMEOUT_SECS: u64 = 5;
 
 pub struct LicenseResult {
     pub tier: PremiumTier,
-    #[allow(dead_code)]
-    pub info: Option<LicenseInfo>,
     pub source: LicenseSource,
 }
 
@@ -40,28 +44,43 @@ impl LicenseSource {
     }
 }
 
+#[derive(Serialize)]
+struct ValidateRequest<'a> {
+    key: &'a str,
+}
+
+#[derive(Deserialize)]
+struct ValidateResponse {
+    valid: bool,
+    tier: Option<String>,
+}
+
 pub fn load_license(config: &LicenseConfig) -> LicenseResult {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(API_TIMEOUT_SECS))
+        .build()
+        .ok();
+
     if let Some(key) = read_from_env() {
-        if let Some(result) = validate_key(&key, LicenseSource::Environment) {
+        if let Some(result) = validate_key(client.as_ref(), &key, LicenseSource::Environment) {
             return result;
         }
     }
 
     if let Some(key) = read_from_credentials() {
-        if let Some(result) = validate_key(&key, LicenseSource::Credentials) {
+        if let Some(result) = validate_key(client.as_ref(), &key, LicenseSource::Credentials) {
             return result;
         }
     }
 
     if let Some(key) = config.api_key.as_ref() {
-        if let Some(result) = validate_key(key, LicenseSource::Config) {
+        if let Some(result) = validate_key(client.as_ref(), key, LicenseSource::Config) {
             return result;
         }
     }
 
     LicenseResult {
         tier: PremiumTier::Free,
-        info: None,
         source: LicenseSource::None,
     }
 }
@@ -83,20 +102,33 @@ fn read_key_from_file(path: &Path) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
-fn validate_key(key: &str, source: LicenseSource) -> Option<LicenseResult> {
-    let secret = get_validation_secret()?;
-    let validator = LicenseValidator::new(&secret);
+fn validate_key(
+    client: Option<&reqwest::blocking::Client>,
+    key: &str,
+    source: LicenseSource,
+) -> Option<LicenseResult> {
+    let client = client?;
+    let api_url = std::env::var("KAIZEN_API_URL").unwrap_or_else(|_| DEFAULT_API_URL.to_string());
+    let url = format!("{}/keys/validate", api_url.trim_end_matches('/'));
 
-    match validator.validate(key) {
-        Ok(info) => Some(LicenseResult {
-            tier: info.tier,
-            info: Some(info),
-            source,
-        }),
-        Err(LicenseError::Expired) => {
-            debug!("License from {} has expired", source.as_str());
-            None
-        }
+    match client.post(&url).json(&ValidateRequest { key }).send() {
+        Ok(resp) => match resp.json::<ValidateResponse>() {
+            Ok(data) if data.valid => {
+                let tier = data
+                    .tier
+                    .and_then(|t| t.parse().ok())
+                    .unwrap_or(PremiumTier::Free);
+                Some(LicenseResult { tier, source })
+            }
+            Ok(_) => {
+                debug!("License from {} is invalid", source.as_str());
+                None
+            }
+            Err(e) => {
+                debug!("Failed to parse API response: {}", e);
+                None
+            }
+        },
         Err(e) => {
             debug!("License validation failed from {}: {}", source.as_str(), e);
             None
@@ -104,41 +136,10 @@ fn validate_key(key: &str, source: LicenseSource) -> Option<LicenseResult> {
     }
 }
 
-fn get_validation_secret() -> Option<Vec<u8>> {
-    if let Ok(secret) = std::env::var("KAIZEN_LICENSE_SECRET") {
-        if !secret.is_empty() {
-            return Some(secret.into_bytes());
-        }
-    }
-    None
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use serial_test::serial;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    fn create_test_secret() -> Vec<u8> {
-        b"test-secret-for-license-validation".to_vec()
-    }
-
-    fn create_test_license(tier: PremiumTier, secret: &[u8]) -> String {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-
-        let info = LicenseInfo {
-            tier,
-            user_id: "test-user".to_string(),
-            expires_at: now + 3600,
-            issued_at: now,
-        };
-
-        let validator = LicenseValidator::new(secret);
-        validator.generate_license(&info).unwrap()
-    }
 
     #[test]
     fn license_source_as_str() {
@@ -157,56 +158,20 @@ mod tests {
         let result = load_license(&config);
 
         assert_eq!(result.tier, PremiumTier::Free);
-        assert!(result.info.is_none());
         assert_eq!(result.source, LicenseSource::None);
     }
 
     #[test]
-    #[serial]
-    fn load_license_from_config() {
-        let secret = create_test_secret();
-        let license = create_test_license(PremiumTier::Pro, &secret);
-        unsafe {
-            std::env::set_var("KAIZEN_LICENSE_SECRET", String::from_utf8(secret).unwrap());
-            std::env::remove_var(ENV_VAR_NAME);
-        }
-
-        let config = LicenseConfig {
-            api_key: Some(license),
-        };
-
-        let result = load_license(&config);
-
-        assert_eq!(result.tier, PremiumTier::Pro);
-        assert!(result.info.is_some());
-        assert_eq!(result.source, LicenseSource::Config);
-
-        unsafe { std::env::remove_var("KAIZEN_LICENSE_SECRET") };
+    fn read_from_env_returns_none_for_empty() {
+        unsafe { std::env::set_var(ENV_VAR_NAME, "") };
+        assert!(read_from_env().is_none());
+        unsafe { std::env::remove_var(ENV_VAR_NAME) };
     }
 
     #[test]
-    #[serial]
-    fn env_takes_priority_over_config() {
-        let secret = create_test_secret();
-        let env_license = create_test_license(PremiumTier::Enterprise, &secret);
-        let config_license = create_test_license(PremiumTier::Pro, &secret);
-        unsafe {
-            std::env::set_var("KAIZEN_LICENSE_SECRET", String::from_utf8(secret).unwrap());
-            std::env::set_var(ENV_VAR_NAME, &env_license);
-        }
-
-        let config = LicenseConfig {
-            api_key: Some(config_license),
-        };
-
-        let result = load_license(&config);
-
-        assert_eq!(result.tier, PremiumTier::Enterprise);
-        assert_eq!(result.source, LicenseSource::Environment);
-
-        unsafe {
-            std::env::remove_var(ENV_VAR_NAME);
-            std::env::remove_var("KAIZEN_LICENSE_SECRET");
-        }
+    fn read_from_env_returns_value() {
+        unsafe { std::env::set_var(ENV_VAR_NAME, "test-key") };
+        assert_eq!(read_from_env(), Some("test-key".to_string()));
+        unsafe { std::env::remove_var(ENV_VAR_NAME) };
     }
 }
