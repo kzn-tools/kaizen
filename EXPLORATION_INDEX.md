@@ -164,17 +164,6 @@ lynx/                                          (Root)
 │       │
 │       └── tests/
 │
-├── 📁 editors/                              (Intégrations IDE)
-│   ├── vscode/                              (Extension VS Code en JavaScript)
-│   │   ├── package.json
-│   │   ├── src/
-│   │   └── ...
-│   │
-│   └── zed/                                 (Extension Zed en Rust)
-│       ├── Cargo.toml
-│       ├── extension.toml
-│       └── src/
-│
 ├── 📁 npm/                                  (Distribution npm)
 │   ├── kaizen-cli/                          (Main npm package)
 │   │   ├── package.json
