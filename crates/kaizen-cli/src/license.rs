@@ -45,8 +45,8 @@ impl LicenseSource {
 }
 
 #[derive(Serialize)]
-struct ValidateRequest {
-    key: String,
+struct ValidateRequest<'a> {
+    key: &'a str,
 }
 
 #[derive(Deserialize)]
@@ -109,13 +109,11 @@ fn validate_key(
 ) -> Option<LicenseResult> {
     let client = client?;
     let api_url = std::env::var("KAIZEN_API_URL").unwrap_or_else(|_| DEFAULT_API_URL.to_string());
-    let url = format!("{}/keys/validate", api_url);
+    let url = format!("{}/keys/validate", api_url.trim_end_matches('/'));
 
     match client
         .post(&url)
-        .json(&ValidateRequest {
-            key: key.to_string(),
-        })
+        .json(&ValidateRequest { key })
         .send()
     {
         Ok(resp) => match resp.json::<ValidateResponse>() {

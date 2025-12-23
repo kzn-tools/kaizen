@@ -31,7 +31,7 @@ pub struct KaizenLanguageServer {
     core_diagnostics: Arc<DashMap<Url, Vec<CoreDiagnostic>>>,
     workspace_root: Arc<RwLock<Option<PathBuf>>>,
     license_tier: Arc<RwLock<PremiumTier>>,
-    http_client: reqwest::Client,
+    http_client: Option<reqwest::Client>,
 }
 
 impl KaizenLanguageServer {
@@ -47,7 +47,8 @@ impl KaizenLanguageServer {
             http_client: reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(5))
                 .build()
-                .unwrap_or_default(),
+                .map_err(|e| warn!(error = %e, "failed to build HTTP client"))
+                .ok(),
         }
     }
 
@@ -72,7 +73,7 @@ impl KaizenLanguageServer {
             LicenseConfig::default()
         });
 
-        let result = load_license_from_sources(&self.http_client, &license_config).await;
+        let result = load_license_from_sources(self.http_client.as_ref(), &license_config).await;
 
         // Update analysis engine first (source of truth for rule filtering)
         // to avoid race condition where analysis runs with stale tier
@@ -238,8 +239,8 @@ impl LicenseSource {
 }
 
 #[derive(Serialize)]
-struct ValidateRequest {
-    key: String,
+struct ValidateRequest<'a> {
+    key: &'a str,
 }
 
 #[derive(Deserialize)]
@@ -249,9 +250,16 @@ struct ValidateResponse {
 }
 
 async fn load_license_from_sources(
-    client: &reqwest::Client,
+    client: Option<&reqwest::Client>,
     config: &LicenseConfig,
 ) -> LicenseResult {
+    let Some(client) = client else {
+        return LicenseResult {
+            tier: PremiumTier::Free,
+            source: LicenseSource::None,
+        };
+    };
+
     if let Some(key) = read_from_env() {
         if let Some(result) = validate_key(client, &key, LicenseSource::Environment).await {
             return result;
@@ -296,13 +304,11 @@ async fn validate_key(
     source: LicenseSource,
 ) -> Option<LicenseResult> {
     let api_url = std::env::var("KAIZEN_API_URL").unwrap_or_else(|_| DEFAULT_API_URL.to_string());
-    let url = format!("{}/keys/validate", api_url);
+    let url = format!("{}/keys/validate", api_url.trim_end_matches('/'));
 
     match client
         .post(&url)
-        .json(&ValidateRequest {
-            key: key.to_string(),
-        })
+        .json(&ValidateRequest { key })
         .send()
         .await
     {
