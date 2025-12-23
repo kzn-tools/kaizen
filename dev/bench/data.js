@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766320562026,
+  "lastUpdate": 1766504355737,
   "repoUrl": "https://github.com/kzn-tools/kaizen",
   "entries": {
     "Kaizen Benchmarks": [
@@ -1088,6 +1088,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "memory/100_files_retained",
             "value": 32.215,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "goore.csmoviz@gmail.com",
+            "name": "Mathieu",
+            "username": "mpiton"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "75523e544dd6843f2e1f79944e592a7d5e3d969b",
+          "message": "Merge pull request #23 from kzn-tools/refactor/cloud-api-validation\n\nrefactor: migrate to cloud-based API key validation",
+          "timestamp": "2025-12-23T16:35:38+01:00",
+          "tree_id": "ebdbd1dd041c21ac2231bfd18524169f5de8ee73",
+          "url": "https://github.com/kzn-tools/kaizen/commit/75523e544dd6843f2e1f79944e592a7d5e3d969b"
+        },
+        "date": 1766504355421,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "parsing/parse_500_loc",
+            "value": 389050,
+            "unit": "ns"
+          },
+          {
+            "name": "parsing/parse_tsx_component",
+            "value": 65455,
+            "unit": "ns"
+          },
+          {
+            "name": "parsing/parse_typescript_interfaces",
+            "value": 34196,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/quality_rules",
+            "value": 304760,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/security_rules",
+            "value": 307660,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/clean_code",
+            "value": 275240,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/analyze_500_loc",
+            "value": 2159900,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/analyze_100_files",
+            "value": 25324000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/10",
+            "value": 2622600,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/25",
+            "value": 6561700,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/50",
+            "value": 13012000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/100",
+            "value": 26048000,
+            "unit": "ns"
+          },
+          {
+            "name": "latency/p95_500_loc_parse_analyze",
+            "value": 143800,
+            "unit": "ns"
+          },
+          {
+            "name": "latency/p95_per_file_100_files",
+            "value": 167800,
+            "unit": "ns"
+          },
+          {
+            "name": "memory/100_files_retained",
+            "value": 36.36,
             "unit": "ns"
           }
         ]
