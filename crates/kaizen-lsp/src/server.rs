@@ -14,7 +14,8 @@ use tracing::{debug, info, instrument, warn};
 
 use kaizen_core::config::{LicenseConfig, find_config_file, load_config};
 use kaizen_core::diagnostic::Diagnostic as CoreDiagnostic;
-use kaizen_core::licensing::{LicenseInfo, LicenseValidator, PremiumTier};
+use kaizen_core::licensing::PremiumTier;
+use serde::{Deserialize, Serialize};
 
 use crate::analysis::AnalysisEngine;
 use crate::capabilities::server_capabilities;
@@ -30,8 +31,7 @@ pub struct KaizenLanguageServer {
     core_diagnostics: Arc<DashMap<Url, Vec<CoreDiagnostic>>>,
     workspace_root: Arc<RwLock<Option<PathBuf>>>,
     license_tier: Arc<RwLock<PremiumTier>>,
-    #[allow(dead_code)]
-    license_info: Arc<RwLock<Option<LicenseInfo>>>,
+    http_client: reqwest::Client,
 }
 
 impl KaizenLanguageServer {
@@ -44,7 +44,10 @@ impl KaizenLanguageServer {
             core_diagnostics: Arc::new(DashMap::new()),
             workspace_root: Arc::new(RwLock::new(None)),
             license_tier: Arc::new(RwLock::new(PremiumTier::Free)),
-            license_info: Arc::new(RwLock::new(None)),
+            http_client: reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(5))
+                .build()
+                .unwrap_or_default(),
         }
     }
 
@@ -69,13 +72,12 @@ impl KaizenLanguageServer {
             LicenseConfig::default()
         });
 
-        let result = load_license_from_sources(&license_config).await;
+        let result = load_license_from_sources(&self.http_client, &license_config).await;
 
         // Update analysis engine first (source of truth for rule filtering)
         // to avoid race condition where analysis runs with stale tier
         self.analysis_engine.write().set_tier(result.tier);
         *self.license_tier.write() = result.tier;
-        *self.license_info.write() = result.info;
 
         info!(tier = %result.tier.as_str(), source = %result.source.as_str(), "license loaded");
     }
@@ -209,10 +211,10 @@ impl LanguageServer for KaizenLanguageServer {
 
 const ENV_VAR_NAME: &str = "KAIZEN_API_KEY";
 const CREDENTIALS_FILE: &str = ".kaizen/credentials";
+const DEFAULT_API_URL: &str = "https://api.kaizen.tools";
 
 struct LicenseResult {
     tier: PremiumTier,
-    info: Option<LicenseInfo>,
     source: LicenseSource,
 }
 
@@ -235,28 +237,41 @@ impl LicenseSource {
     }
 }
 
-async fn load_license_from_sources(config: &LicenseConfig) -> LicenseResult {
+#[derive(Serialize)]
+struct ValidateRequest {
+    key: String,
+}
+
+#[derive(Deserialize)]
+struct ValidateResponse {
+    valid: bool,
+    tier: Option<String>,
+}
+
+async fn load_license_from_sources(
+    client: &reqwest::Client,
+    config: &LicenseConfig,
+) -> LicenseResult {
     if let Some(key) = read_from_env() {
-        if let Some(result) = validate_key(&key, LicenseSource::Environment) {
+        if let Some(result) = validate_key(client, &key, LicenseSource::Environment).await {
             return result;
         }
     }
 
     if let Some(key) = read_from_credentials().await {
-        if let Some(result) = validate_key(&key, LicenseSource::Credentials) {
+        if let Some(result) = validate_key(client, &key, LicenseSource::Credentials).await {
             return result;
         }
     }
 
     if let Some(key) = config.api_key.as_ref() {
-        if let Some(result) = validate_key(key, LicenseSource::Config) {
+        if let Some(result) = validate_key(client, key, LicenseSource::Config).await {
             return result;
         }
     }
 
     LicenseResult {
         tier: PremiumTier::Free,
-        info: None,
         source: LicenseSource::None,
     }
 }
@@ -275,28 +290,41 @@ async fn read_from_credentials() -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
-fn validate_key(key: &str, source: LicenseSource) -> Option<LicenseResult> {
-    let secret = get_validation_secret()?;
-    let validator = LicenseValidator::new(&secret);
+async fn validate_key(
+    client: &reqwest::Client,
+    key: &str,
+    source: LicenseSource,
+) -> Option<LicenseResult> {
+    let api_url = std::env::var("KAIZEN_API_URL").unwrap_or_else(|_| DEFAULT_API_URL.to_string());
+    let url = format!("{}/keys/validate", api_url);
 
-    match validator.validate(key) {
-        Ok(info) => Some(LicenseResult {
-            tier: info.tier,
-            info: Some(info),
-            source,
-        }),
+    match client
+        .post(&url)
+        .json(&ValidateRequest {
+            key: key.to_string(),
+        })
+        .send()
+        .await
+    {
+        Ok(resp) => match resp.json::<ValidateResponse>().await {
+            Ok(data) if data.valid => {
+                let tier = data
+                    .tier
+                    .and_then(|t| t.parse().ok())
+                    .unwrap_or(PremiumTier::Free);
+                Some(LicenseResult { tier, source })
+            }
+            Ok(_) => {
+                debug!(source = %source.as_str(), "license is invalid");
+                None
+            }
+            Err(e) => {
+                warn!(source = %source.as_str(), error = %e, "failed to parse API response");
+                None
+            }
+        },
         Err(e) => {
-            warn!(source = %source.as_str(), error = %e, "license validation failed");
-            None
-        }
-    }
-}
-
-fn get_validation_secret() -> Option<Vec<u8>> {
-    match std::env::var("KAIZEN_LICENSE_SECRET") {
-        Ok(s) if !s.is_empty() => Some(s.into_bytes()),
-        _ => {
-            debug!("KAIZEN_LICENSE_SECRET not set, license validation disabled");
+            warn!(source = %source.as_str(), error = %e, "license validation request failed");
             None
         }
     }

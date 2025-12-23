@@ -48,7 +48,7 @@ mod tests {
     #[test]
     fn licensing_module_accessible() {
         let _ = crate::licensing::PremiumTier::Free;
-        let _ = crate::licensing::LicenseValidator::new(b"test-key");
+        let _ = crate::licensing::PremiumTier::default();
     }
 
     #[test]

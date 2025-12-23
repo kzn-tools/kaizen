@@ -18,6 +18,7 @@ walkdir = "2.5"
 rayon = "1.10"
 colored = "2"
 dirs = "5"
+reqwest = { version = "0.12", features = ["json", "blocking"] }
 
 [dev-dependencies]
 tempfile = "3"
