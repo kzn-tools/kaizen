@@ -48,11 +48,11 @@ Vous avez une exploration **TRÈS COMPLÈTE** du projet Kaizen (anciennement Lyn
 - Formats: pretty, json, sarif, ndjson
 
 ✅ **Plugin Zed:**
-- `/editors/zed/` - Extension native Rust
+- Extension disponible sur [kzn-tools/zed](https://github.com/kzn-tools/zed)
 - Compilée en WebAssembly
 
 ✅ **Autres intégrations:**
-- VS Code extension (JavaScript)
+- VS Code extension - disponible sur [kzn-tools/vscode](https://github.com/kzn-tools/vscode)
 - GitHub Actions (action.yml)
 - npm package (kzn-cli)
 - Pre-commit hook support

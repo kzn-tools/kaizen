@@ -275,36 +275,13 @@ See [docs/rules/](docs/rules/) for detailed rule documentation.
 
 ### VS Code
 
-1. Build and install the extension:
-   ```bash
-   cd editors/vscode
-   npm install
-   npm run compile
-   ```
-
-2. Install in VS Code:
-   - Copy folder to `~/.vscode/extensions/kaizen-lsp`
-   - Or use "Extensions: Install from VSIX..."
-
-3. Configure (optional):
-   ```json
-   {
-     "kaizen.serverPath": "~/.local/bin/kaizen-lsp"
-   }
-   ```
+Install the extension from the dedicated repository:
+- **Repository:** [kzn-tools/vscode](https://github.com/kzn-tools/vscode)
 
 ### Zed
 
-1. Install the extension:
-   - Open Zed → Extensions
-   - Click "Install Dev Extension"
-   - Select `editors/zed` directory
-
-2. Or build manually:
-   ```bash
-   cd editors/zed
-   cargo build --release --target wasm32-wasip1
-   ```
+Install the extension from the dedicated repository:
+- **Repository:** [kzn-tools/zed](https://github.com/kzn-tools/zed)
 
 ### LSP Server Setup
 
@@ -348,13 +325,14 @@ kaizen/
 │   ├── kaizen-core/   # Analysis engine, rules, taint tracking
 │   ├── kaizen-cli/    # Command-line interface
 │   └── kaizen-lsp/    # Language Server Protocol
-├── editors/
-│   ├── vscode/        # VS Code extension
-│   └── zed/           # Zed extension
 ├── docs/
 │   └── rules/         # Rule documentation
 └── scripts/           # Development utilities
 ```
+
+Editor extensions are maintained in separate repositories:
+- **VS Code:** [kzn-tools/vscode](https://github.com/kzn-tools/vscode)
+- **Zed:** [kzn-tools/zed](https://github.com/kzn-tools/zed)
 
 ## License
 

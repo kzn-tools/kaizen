@@ -22,10 +22,6 @@ lynx/
 │   ├── kaizen-cli/                  # Interface CLI (~1000+ lignes)
 │   └── kaizen-lsp/                  # Serveur Language Server Protocol
 │
-├── editors/                         # Intégrations IDE
-│   ├── vscode/                      # Extension VS Code (Node.js)
-│   └── zed/                         # Extension Zed (Rust WASM)
-│
 ├── npm/                             # Distribution npm
 │   ├── kaizen-cli/                  # Package npm main
 │   ├── darwin-x64/                  # Binaires macOS Intel
@@ -688,11 +684,11 @@ kaizen check ./src --format sarif > results.sarif
 ### 6.2 Mode LSP (IDE temps réel)
 
 **VS Code:**
-- Voir extension dans `/editors/vscode`
+- Extension disponible sur [kzn-tools/vscode](https://github.com/kzn-tools/vscode)
 - Utilise `vscode-languageclient` pour communiquer
 
 **Zed:**
-- Extension WASM native (`/editors/zed`)
+- Extension disponible sur [kzn-tools/zed](https://github.com/kzn-tools/zed)
 - Compilée avec `cargo build --target wasm32-wasip1`
 
 **Configuration:**
