@@ -111,11 +111,7 @@ fn validate_key(
     let api_url = std::env::var("KAIZEN_API_URL").unwrap_or_else(|_| DEFAULT_API_URL.to_string());
     let url = format!("{}/keys/validate", api_url.trim_end_matches('/'));
 
-    match client
-        .post(&url)
-        .json(&ValidateRequest { key })
-        .send()
-    {
+    match client.post(&url).json(&ValidateRequest { key }).send() {
         Ok(resp) => match resp.json::<ValidateResponse>() {
             Ok(data) if data.valid => {
                 let tier = data
