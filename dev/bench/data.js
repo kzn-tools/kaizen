@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1766504949560,
+  "lastUpdate": 1766682570423,
   "repoUrl": "https://github.com/kzn-tools/kaizen",
   "entries": {
     "Kaizen Benchmarks": [
@@ -1286,6 +1286,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "memory/100_files_retained",
             "value": 36.511,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "goore.csmoviz@gmail.com",
+            "name": "Mathieu",
+            "username": "mpiton"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ece11f4f45f72198f2f8856b4e6badc6346e88ad",
+          "message": "Merge pull request #29 from kzn-tools/feature/oauth-device-flow\n\nfeat(auth): OAuth Device Flow for browser-based authentication",
+          "timestamp": "2025-12-25T18:05:47+01:00",
+          "tree_id": "bba7b58d60b5b1a3394d92f0cd4040e9812d6905",
+          "url": "https://github.com/kzn-tools/kaizen/commit/ece11f4f45f72198f2f8856b4e6badc6346e88ad"
+        },
+        "date": 1766682569904,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "parsing/parse_500_loc",
+            "value": 394090,
+            "unit": "ns"
+          },
+          {
+            "name": "parsing/parse_tsx_component",
+            "value": 67086,
+            "unit": "ns"
+          },
+          {
+            "name": "parsing/parse_typescript_interfaces",
+            "value": 35436,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/quality_rules",
+            "value": 305710,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/security_rules",
+            "value": 307280,
+            "unit": "ns"
+          },
+          {
+            "name": "rules/clean_code",
+            "value": 270810,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/analyze_500_loc",
+            "value": 2149700,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/analyze_100_files",
+            "value": 25618000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/10",
+            "value": 2603800,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/25",
+            "value": 6362100,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/50",
+            "value": 12628000,
+            "unit": "ns"
+          },
+          {
+            "name": "analysis/project_size/100",
+            "value": 25901000,
+            "unit": "ns"
+          },
+          {
+            "name": "latency/p95_500_loc_parse_analyze",
+            "value": 146080,
+            "unit": "ns"
+          },
+          {
+            "name": "latency/p95_per_file_100_files",
+            "value": 166880,
+            "unit": "ns"
+          },
+          {
+            "name": "memory/100_files_retained",
+            "value": 41.852,
             "unit": "ns"
           }
         ]
