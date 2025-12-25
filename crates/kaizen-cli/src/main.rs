@@ -130,12 +130,26 @@ mod tests {
     }
 
     #[test]
-    fn cli_parses_auth_login() {
-        let cli = Cli::try_parse_from(["kaizen", "auth", "login", "test-key"]).unwrap();
+    fn cli_parses_auth_login_with_key() {
+        let cli = Cli::try_parse_from(["kaizen", "auth", "login", "--key", "test-key"]).unwrap();
         match cli.command {
             Commands::Auth(args) => match args.command {
                 commands::auth::AuthSubcommand::Login { api_key } => {
-                    assert_eq!(api_key, "test-key");
+                    assert_eq!(api_key, Some("test-key".to_string()));
+                }
+                _ => panic!("Expected Login subcommand"),
+            },
+            _ => panic!("Expected Auth command"),
+        }
+    }
+
+    #[test]
+    fn cli_parses_auth_login_without_key() {
+        let cli = Cli::try_parse_from(["kaizen", "auth", "login"]).unwrap();
+        match cli.command {
+            Commands::Auth(args) => match args.command {
+                commands::auth::AuthSubcommand::Login { api_key } => {
+                    assert_eq!(api_key, None);
                 }
                 _ => panic!("Expected Login subcommand"),
             },

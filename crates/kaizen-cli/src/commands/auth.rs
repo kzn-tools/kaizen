@@ -6,22 +6,29 @@ use clap::{Args, Subcommand};
 use colored::Colorize;
 use kaizen_core::config::LicenseConfig;
 use kaizen_core::licensing::PremiumTier;
+use serde::{Deserialize, Serialize};
 use std::fs;
+use std::io::{self, Write};
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
+use tracing::debug;
 
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
 const CREDENTIALS_DIR: &str = ".kaizen";
 const CREDENTIALS_FILE: &str = "credentials";
+const DEFAULT_API_URL: &str = "https://api.kaizen.tools";
+const DEVICE_FLOW_TIMEOUT_SECS: u64 = 900;
+const API_TIMEOUT_SECS: u64 = 10;
 
 #[derive(Subcommand, Debug)]
 pub enum AuthSubcommand {
-    /// Save API key to authenticate with Kaizen
+    /// Authenticate with Kaizen (opens browser for device flow, or use --key for direct API key)
     Login {
-        /// Your Kaizen API key
-        #[arg(value_name = "API_KEY")]
-        api_key: String,
+        /// Your Kaizen API key (optional - if not provided, uses browser-based device flow)
+        #[arg(long = "key", value_name = "API_KEY")]
+        api_key: Option<String>,
     },
 
     /// Remove saved API key
@@ -29,6 +36,38 @@ pub enum AuthSubcommand {
 
     /// Display current authentication status
     Status,
+}
+
+#[derive(Debug, Serialize)]
+struct DeviceFlowRequest {
+    scope: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct DeviceFlowResponse {
+    device_code: String,
+    user_code: String,
+    verification_uri: String,
+    expires_in: u64,
+    interval: u64,
+}
+
+#[derive(Debug, Deserialize)]
+struct TokenResponse {
+    access_token: String,
+    #[allow(dead_code)]
+    refresh_token: Option<String>,
+    #[allow(dead_code)]
+    token_type: String,
+    #[allow(dead_code)]
+    scope: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ErrorResponse {
+    error: Option<String>,
+    #[allow(dead_code)]
+    message: Option<String>,
 }
 
 #[derive(Args, Debug)]
@@ -40,46 +79,87 @@ pub struct AuthArgs {
 impl AuthArgs {
     pub fn run(&self) -> Result<()> {
         match &self.command {
-            AuthSubcommand::Login { api_key } => Self::handle_login(api_key),
+            AuthSubcommand::Login { api_key } => match api_key {
+                Some(key) => Self::handle_login_with_key(key),
+                None => Self::handle_device_flow(),
+            },
             AuthSubcommand::Logout => Self::handle_logout(),
             AuthSubcommand::Status => Self::handle_status(),
         }
     }
 
-    fn handle_login(api_key: &str) -> Result<()> {
+    fn handle_login_with_key(api_key: &str) -> Result<()> {
         let api_key = api_key.trim();
         if api_key.is_empty() {
             anyhow::bail!("API key cannot be empty");
         }
 
-        let credentials_path = get_credentials_path()?;
-        let credentials_dir = credentials_path
-            .parent()
-            .ok_or_else(|| anyhow::anyhow!("Invalid credentials path: no parent directory"))?;
+        save_credentials(api_key)?;
+        Ok(())
+    }
 
-        if !credentials_dir.exists() {
-            fs::create_dir_all(credentials_dir)?;
-        }
+    fn handle_device_flow() -> Result<()> {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(API_TIMEOUT_SECS))
+            .build()
+            .context("Failed to create HTTP client")?;
 
-        fs::write(&credentials_path, api_key).with_context(|| {
-            format!(
-                "Failed to write credentials to {}",
-                credentials_path.display()
-            )
-        })?;
+        let api_url =
+            std::env::var("KAIZEN_API_URL").unwrap_or_else(|_| DEFAULT_API_URL.to_string());
 
-        #[cfg(unix)]
-        {
-            let mut perms = fs::metadata(&credentials_path)?.permissions();
-            perms.set_mode(0o600);
-            fs::set_permissions(&credentials_path, perms)?;
-        }
+        println!("{}", "Starting authentication...".cyan());
 
+        let device_response = initiate_device_flow(&client, &api_url)?;
+
+        println!();
         println!(
-            "{} API key saved to {}",
-            "✓".green().bold(),
-            credentials_path.display()
+            "{}",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
         );
+        println!();
+        println!(
+            "  {}  Open {} in your browser",
+            "1.".bold(),
+            device_response.verification_uri.cyan().underline()
+        );
+        println!();
+        println!(
+            "  {}  Enter code: {}",
+            "2.".bold(),
+            device_response.user_code.yellow().bold()
+        );
+        println!();
+        println!(
+            "{}",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
+        );
+        println!();
+
+        if webbrowser::open(&device_response.verification_uri).is_ok() {
+            println!("{} Browser opened automatically", "→".blue());
+        } else {
+            println!(
+                "{} Could not open browser automatically. Please open the URL manually.",
+                "!".yellow()
+            );
+        }
+
+        print!("{}", "Waiting for authorization".dimmed());
+        io::stdout().flush().ok();
+
+        let token = poll_for_token(
+            &client,
+            &api_url,
+            &device_response.device_code,
+            device_response.interval,
+            device_response.expires_in,
+        )?;
+
+        println!();
+        println!();
+
+        save_credentials(&token.access_token)?;
+
         Ok(())
     }
 
@@ -139,6 +219,144 @@ fn get_credentials_path() -> Result<PathBuf> {
     Ok(home.join(CREDENTIALS_DIR).join(CREDENTIALS_FILE))
 }
 
+fn save_credentials(token: &str) -> Result<()> {
+    let credentials_path = get_credentials_path()?;
+    let credentials_dir = credentials_path
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("Invalid credentials path: no parent directory"))?;
+
+    if !credentials_dir.exists() {
+        fs::create_dir_all(credentials_dir)?;
+    }
+
+    fs::write(&credentials_path, token).with_context(|| {
+        format!(
+            "Failed to write credentials to {}",
+            credentials_path.display()
+        )
+    })?;
+
+    #[cfg(unix)]
+    {
+        let mut perms = fs::metadata(&credentials_path)?.permissions();
+        perms.set_mode(0o600);
+        fs::set_permissions(&credentials_path, perms)?;
+    }
+
+    println!(
+        "{} Authenticated successfully! Credentials saved to {}",
+        "✓".green().bold(),
+        credentials_path.display()
+    );
+    Ok(())
+}
+
+fn initiate_device_flow(
+    client: &reqwest::blocking::Client,
+    api_url: &str,
+) -> Result<DeviceFlowResponse> {
+    let url = format!("{}/auth/device", api_url.trim_end_matches('/'));
+
+    let response = client
+        .post(&url)
+        .json(&DeviceFlowRequest {
+            scope: "read:user".to_string(),
+        })
+        .send()
+        .context("Failed to initiate device flow")?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().unwrap_or_default();
+        debug!("Device flow initiation failed: {} - {}", status, error_text);
+        anyhow::bail!(
+            "Failed to start authentication (status {}). Is the API available?",
+            status
+        );
+    }
+
+    response
+        .json::<DeviceFlowResponse>()
+        .context("Failed to parse device flow response")
+}
+
+fn poll_for_token(
+    client: &reqwest::blocking::Client,
+    api_url: &str,
+    device_code: &str,
+    interval: u64,
+    expires_in: u64,
+) -> Result<TokenResponse> {
+    let url = format!(
+        "{}/auth/device/token?device_code={}",
+        api_url.trim_end_matches('/'),
+        device_code
+    );
+
+    let poll_interval = Duration::from_secs(interval.max(5));
+    let timeout = Duration::from_secs(expires_in.min(DEVICE_FLOW_TIMEOUT_SECS));
+    let start = Instant::now();
+    let mut current_interval = poll_interval;
+
+    loop {
+        if start.elapsed() > timeout {
+            println!();
+            anyhow::bail!("Authentication timed out. Please try again.");
+        }
+
+        std::thread::sleep(current_interval);
+
+        print!(".");
+        io::stdout().flush().ok();
+
+        match client.get(&url).send() {
+            Ok(response) => {
+                if response.status().is_success() {
+                    match response.json::<TokenResponse>() {
+                        Ok(token) => return Ok(token),
+                        Err(e) => {
+                            debug!("Failed to parse token response: {}", e);
+                            continue;
+                        }
+                    }
+                }
+
+                let status = response.status();
+                let body = response.text().unwrap_or_default();
+
+                if let Ok(error_resp) = serde_json::from_str::<ErrorResponse>(&body) {
+                    match error_resp.error.as_deref() {
+                        Some("authorization_pending") => continue,
+                        Some("slow_down") => {
+                            current_interval = Duration::from_secs(
+                                current_interval.as_secs().saturating_add(5).min(30),
+                            );
+                            continue;
+                        }
+                        Some("access_denied") => {
+                            println!();
+                            anyhow::bail!("Authorization was denied. Please try again.");
+                        }
+                        Some("expired_token") => {
+                            println!();
+                            anyhow::bail!("Device code expired. Please try again.");
+                        }
+                        _ => {
+                            debug!("Unknown error response: {} - {}", status, body);
+                            continue;
+                        }
+                    }
+                }
+
+                debug!("Unexpected response: {} - {}", status, body);
+            }
+            Err(e) => {
+                debug!("Request failed: {}", e);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -168,7 +386,7 @@ mod tests {
         with_temp_home(|| {
             let args = AuthArgs {
                 command: AuthSubcommand::Login {
-                    api_key: "test-key-123".to_string(),
+                    api_key: Some("test-key-123".to_string()),
                 },
             };
             let result = args.run();
@@ -187,7 +405,7 @@ mod tests {
         with_temp_home(|| {
             let args = AuthArgs {
                 command: AuthSubcommand::Login {
-                    api_key: "test-key".to_string(),
+                    api_key: Some("test-key".to_string()),
                 },
             };
             let result = args.run();
@@ -203,7 +421,7 @@ mod tests {
     fn login_rejects_empty_key() {
         let args = AuthArgs {
             command: AuthSubcommand::Login {
-                api_key: "  ".to_string(),
+                api_key: Some("  ".to_string()),
             },
         };
         let result = args.run();
@@ -268,7 +486,7 @@ mod tests {
         with_temp_home(|| {
             let args = AuthArgs {
                 command: AuthSubcommand::Login {
-                    api_key: "test-key".to_string(),
+                    api_key: Some("test-key".to_string()),
                 },
             };
             args.run().unwrap();
