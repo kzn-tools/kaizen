@@ -41,6 +41,7 @@ pub enum AuthSubcommand {
 #[derive(Debug, Serialize)]
 struct DeviceFlowRequest {
     scope: String,
+    client_type: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -261,6 +262,7 @@ fn initiate_device_flow(
         .post(&url)
         .json(&DeviceFlowRequest {
             scope: "read:user".to_string(),
+            client_type: "cli".to_string(),
         })
         .send()
         .context("Failed to initiate device flow")?;
