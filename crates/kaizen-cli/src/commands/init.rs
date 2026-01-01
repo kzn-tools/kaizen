@@ -4,6 +4,7 @@ use anyhow::Result;
 use clap::{Args, ValueEnum};
 use colored::Colorize;
 use kaizen_core::config::CONFIG_FILENAME;
+use rust_i18n::t;
 use std::fs;
 use std::path::Path;
 
@@ -47,12 +48,14 @@ pub enum HookType {
 
 #[derive(Args, Debug)]
 pub struct InitArgs {
-    /// Force overwrite existing configuration
-    #[arg(short, long)]
+    #[arg(short, long, help = "Force overwrite existing configuration")]
     pub force: bool,
 
-    /// Install a git hook (e.g., pre-commit)
-    #[arg(long, value_name = "HOOK")]
+    #[arg(
+        long,
+        value_name = "HOOK",
+        help = "Install a git hook (e.g., pre-commit)"
+    )]
     pub hook: Option<HookType>,
 }
 
@@ -65,17 +68,14 @@ impl InitArgs {
         let config_path = Path::new(CONFIG_FILENAME);
 
         if config_path.exists() && !self.force {
-            anyhow::bail!(
-                "Config file '{}' already exists. Use --force to overwrite.",
-                CONFIG_FILENAME
-            );
+            anyhow::bail!("{}", t!("init.config_exists", filename = CONFIG_FILENAME));
         }
 
         fs::write(config_path, DEFAULT_CONFIG)?;
         println!(
-            "{} Created {} configuration file",
+            "{} {}",
             "✓".green().bold(),
-            CONFIG_FILENAME.cyan()
+            t!("init.config_created", filename = CONFIG_FILENAME.cyan())
         );
         Ok(())
     }
@@ -95,10 +95,7 @@ impl InitArgs {
         let hook_path = hooks_dir.join(hook_name);
 
         if hook_path.exists() && !self.force {
-            anyhow::bail!(
-                "Hook '{}' already exists. Use --force to overwrite.",
-                hook_name
-            );
+            anyhow::bail!("{}", t!("init.hook_exists", name = hook_name));
         }
 
         fs::write(&hook_path, hook_content)?;
@@ -111,10 +108,13 @@ impl InitArgs {
         }
 
         println!(
-            "{} Installed {} hook at {}",
+            "{} {}",
             "✓".green().bold(),
-            hook_name.cyan(),
-            hook_path.display()
+            t!(
+                "init.hook_installed",
+                hook = hook_name.cyan(),
+                path = hook_path.display()
+            )
         );
         Ok(())
     }
@@ -128,7 +128,7 @@ fn find_git_dir() -> Result<std::path::PathBuf> {
             return Ok(git_dir);
         }
         if !current.pop() {
-            anyhow::bail!("Not a git repository (or any parent up to mount point)");
+            anyhow::bail!("{}", t!("init.not_git_repo"));
         }
     }
 }

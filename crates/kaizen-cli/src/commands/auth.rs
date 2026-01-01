@@ -6,6 +6,7 @@ use clap::{Args, Subcommand};
 use colored::Colorize;
 use kaizen_core::config::LicenseConfig;
 use kaizen_core::licensing::PremiumTier;
+use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{self, Write};
@@ -24,17 +25,22 @@ const API_TIMEOUT_SECS: u64 = 10;
 
 #[derive(Subcommand, Debug)]
 pub enum AuthSubcommand {
-    /// Authenticate with Kaizen (opens browser for device flow, or use --key for direct API key)
+    #[command(
+        about = "Authenticate with Kaizen (opens browser for device flow, or use --key for direct API key)"
+    )]
     Login {
-        /// Your Kaizen API key (optional - if not provided, uses browser-based device flow)
-        #[arg(long = "key", value_name = "API_KEY")]
+        #[arg(
+            long = "key",
+            value_name = "API_KEY",
+            help = "Your Kaizen API key (optional - if not provided, uses browser-based device flow)"
+        )]
         api_key: Option<String>,
     },
 
-    /// Remove saved API key
+    #[command(about = "Remove saved API key")]
     Logout,
 
-    /// Display current authentication status
+    #[command(about = "Display current authentication status")]
     Status,
 }
 
@@ -92,7 +98,7 @@ impl AuthArgs {
     fn handle_login_with_key(api_key: &str) -> Result<()> {
         let api_key = api_key.trim();
         if api_key.is_empty() {
-            anyhow::bail!("API key cannot be empty");
+            anyhow::bail!("{}", t!("auth.key_empty"));
         }
 
         save_credentials(api_key)?;
@@ -103,12 +109,12 @@ impl AuthArgs {
         let client = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(API_TIMEOUT_SECS))
             .build()
-            .context("Failed to create HTTP client")?;
+            .context(t!("error.failed_create_client").to_string())?;
 
         let api_url =
             std::env::var("KAIZEN_API_URL").unwrap_or_else(|_| DEFAULT_API_URL.to_string());
 
-        println!("{}", "Starting authentication...".cyan());
+        println!("{}", t!("auth.starting").cyan());
 
         let device_response = initiate_device_flow(&client, &api_url)?;
 
@@ -119,15 +125,21 @@ impl AuthArgs {
         );
         println!();
         println!(
-            "  {}  Open {} in your browser",
+            "  {}  {}",
             "1.".bold(),
-            device_response.verification_uri.cyan().underline()
+            t!(
+                "auth.step1",
+                url = device_response.verification_uri.cyan().underline()
+            )
         );
         println!();
         println!(
-            "  {}  Enter code: {}",
+            "  {}  {}",
             "2.".bold(),
-            device_response.user_code.yellow().bold()
+            t!(
+                "auth.step2",
+                code = device_response.user_code.yellow().bold()
+            )
         );
         println!();
         println!(
@@ -137,15 +149,12 @@ impl AuthArgs {
         println!();
 
         if webbrowser::open(&device_response.verification_uri).is_ok() {
-            println!("{} Browser opened automatically", "→".blue());
+            println!("{} {}", "→".blue(), t!("auth.browser_opened"));
         } else {
-            println!(
-                "{} Could not open browser automatically. Please open the URL manually.",
-                "!".yellow()
-            );
+            println!("{} {}", "!".yellow(), t!("auth.browser_failed"));
         }
 
-        print!("{}", "Waiting for authorization".dimmed());
+        print!("{}", t!("auth.waiting").dimmed());
         io::stdout().flush().ok();
 
         let token = poll_for_token(
@@ -168,20 +177,24 @@ impl AuthArgs {
         let credentials_path = get_credentials_path()?;
 
         if !credentials_path.exists() {
-            println!("{} No credentials found", "!".yellow().bold());
+            println!("{} {}", "!".yellow().bold(), t!("auth.no_credentials"));
             return Ok(());
         }
 
         fs::remove_file(&credentials_path).with_context(|| {
-            format!(
-                "Failed to remove credentials from {}",
-                credentials_path.display()
+            t!(
+                "error.failed_remove_credentials",
+                path = credentials_path.display()
             )
+            .to_string()
         })?;
         println!(
-            "{} Credentials removed from {}",
+            "{} {}",
             "✓".green().bold(),
-            credentials_path.display()
+            t!(
+                "auth.credentials_removed",
+                path = credentials_path.display()
+            )
         );
         Ok(())
     }
@@ -191,22 +204,25 @@ impl AuthArgs {
         let result = load_license(&config);
 
         let tier_display = match result.tier {
-            PremiumTier::Free => "Free".white(),
-            PremiumTier::Pro => "Pro".cyan().bold(),
-            PremiumTier::Enterprise => "Enterprise".magenta().bold(),
+            PremiumTier::Free => t!("tier.free").white(),
+            PremiumTier::Pro => t!("tier.pro").cyan().bold(),
+            PremiumTier::Enterprise => t!("tier.enterprise").magenta().bold(),
         };
 
-        println!("Tier: {}", tier_display);
+        println!("{}", t!("auth.tier", tier = tier_display));
 
         match result.source {
             LicenseSource::None => {
-                println!("Status: {}", "Not authenticated".yellow());
+                println!("Status: {}", t!("auth.status.not_authenticated").yellow());
             }
             source => {
                 println!(
-                    "Status: {} (from {})",
-                    "Authenticated".green(),
-                    source.as_str()
+                    "{}",
+                    t!(
+                        "auth.status_from",
+                        status = t!("auth.status.authenticated").green(),
+                        source = source.as_str()
+                    )
                 );
             }
         }
@@ -216,7 +232,7 @@ impl AuthArgs {
 }
 
 fn get_credentials_path() -> Result<PathBuf> {
-    let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
+    let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("{}", t!("error.home_not_found")))?;
     Ok(home.join(CREDENTIALS_DIR).join(CREDENTIALS_FILE))
 }
 
@@ -224,17 +240,18 @@ fn save_credentials(token: &str) -> Result<()> {
     let credentials_path = get_credentials_path()?;
     let credentials_dir = credentials_path
         .parent()
-        .ok_or_else(|| anyhow::anyhow!("Invalid credentials path: no parent directory"))?;
+        .ok_or_else(|| anyhow::anyhow!("{}", t!("error.invalid_credentials_path")))?;
 
     if !credentials_dir.exists() {
         fs::create_dir_all(credentials_dir)?;
     }
 
     fs::write(&credentials_path, token).with_context(|| {
-        format!(
-            "Failed to write credentials to {}",
-            credentials_path.display()
+        t!(
+            "error.failed_write_credentials",
+            path = credentials_path.display()
         )
+        .to_string()
     })?;
 
     #[cfg(unix)]
@@ -245,9 +262,9 @@ fn save_credentials(token: &str) -> Result<()> {
     }
 
     println!(
-        "{} Authenticated successfully! Credentials saved to {}",
+        "{} {}",
         "✓".green().bold(),
-        credentials_path.display()
+        t!("auth.success", path = credentials_path.display())
     );
     Ok(())
 }
@@ -265,21 +282,18 @@ fn initiate_device_flow(
             client_type: "cli".to_string(),
         })
         .send()
-        .context("Failed to initiate device flow")?;
+        .context(t!("error.failed_initiate_flow").to_string())?;
 
     if !response.status().is_success() {
         let status = response.status();
         let error_text = response.text().unwrap_or_default();
         debug!("Device flow initiation failed: {} - {}", status, error_text);
-        anyhow::bail!(
-            "Failed to start authentication (status {}). Is the API available?",
-            status
-        );
+        anyhow::bail!("{}", t!("auth.failed_status", status = status));
     }
 
     response
         .json::<DeviceFlowResponse>()
-        .context("Failed to parse device flow response")
+        .context(t!("error.failed_parse_response").to_string())
 }
 
 fn poll_for_token(
@@ -303,7 +317,7 @@ fn poll_for_token(
     loop {
         if start.elapsed() > timeout {
             println!();
-            anyhow::bail!("Authentication timed out. Please try again.");
+            anyhow::bail!("{}", t!("auth.timeout"));
         }
 
         std::thread::sleep(current_interval);
@@ -337,11 +351,11 @@ fn poll_for_token(
                         }
                         Some("access_denied") => {
                             println!();
-                            anyhow::bail!("Authorization was denied. Please try again.");
+                            anyhow::bail!("{}", t!("auth.denied"));
                         }
                         Some("expired_token") => {
                             println!();
-                            anyhow::bail!("Device code expired. Please try again.");
+                            anyhow::bail!("{}", t!("auth.expired"));
                         }
                         _ => {
                             debug!("Unknown error response: {} - {}", status, body);

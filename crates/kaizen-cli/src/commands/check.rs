@@ -14,6 +14,7 @@ use kaizen_core::licensing::PremiumTier;
 use kaizen_core::parser::ParsedFile;
 use kaizen_core::rules::{Confidence, Severity};
 use rayon::prelude::*;
+use rust_i18n::t;
 use std::collections::HashMap;
 use std::fs;
 use std::io;
@@ -25,32 +26,43 @@ const SUPPORTED_EXTENSIONS: &[&str] = &["js", "jsx", "ts", "tsx", "mjs", "cjs", 
 
 #[derive(Args, Debug)]
 pub struct CheckArgs {
-    /// Path to file or directory to analyze
-    #[arg(value_name = "PATH", required_unless_present = "staged")]
+    #[arg(
+        value_name = "PATH",
+        required_unless_present = "staged",
+        help = "Path to file or directory to analyze"
+    )]
     pub path: Option<PathBuf>,
 
-    /// Analyze only git staged files
-    #[arg(long)]
+    #[arg(long, help = "Analyze only git staged files")]
     pub staged: bool,
 
-    /// Output format for diagnostics (pretty, text, json, ndjson, sarif)
-    #[arg(short, long, default_value = "pretty")]
+    #[arg(
+        short,
+        long,
+        default_value = "pretty",
+        help = "Output format for diagnostics (pretty, text, json, ndjson, sarif)"
+    )]
     pub format: String,
 
-    /// Fail on warnings (exit code 1)
-    #[arg(long)]
+    #[arg(long, help = "Fail on warnings (exit code 1)")]
     pub fail_on_warnings: bool,
 
-    /// Filter diagnostics by minimum severity level (error, warning, info, hint)
-    #[arg(long, value_name = "LEVEL")]
+    #[arg(
+        long,
+        value_name = "LEVEL",
+        help = "Filter diagnostics by minimum severity level (error, warning, info, hint)"
+    )]
     pub severity: Option<String>,
 
-    /// Filter diagnostics by minimum confidence level (high, medium, low)
-    #[arg(long, value_name = "LEVEL", default_value = "medium")]
+    #[arg(
+        long,
+        value_name = "LEVEL",
+        default_value = "medium",
+        help = "Filter diagnostics by minimum confidence level (high, medium, low)"
+    )]
     pub min_confidence: String,
 
-    /// Disable colored output
-    #[arg(long)]
+    #[arg(long, help = "Disable colored output")]
     pub no_color: bool,
 }
 
@@ -76,9 +88,9 @@ impl CheckArgs {
 
         if files.is_empty() {
             if self.staged {
-                println!("No staged JavaScript/TypeScript files found.");
+                println!("{}", t!("check.no_staged_files"));
             } else {
-                println!("No JavaScript/TypeScript files found.");
+                println!("{}", t!("check.no_files"));
             }
             return Ok(());
         }
@@ -151,10 +163,7 @@ impl CheckArgs {
             Some("warning") => Ok(Severity::Warning),
             Some("info") => Ok(Severity::Info),
             Some("hint") => Ok(Severity::Hint),
-            Some(other) => anyhow::bail!(
-                "Invalid severity '{}'. Valid values: error, warning, info, hint",
-                other
-            ),
+            Some(other) => anyhow::bail!("{}", t!("check.invalid_severity", value = other)),
             None => Ok(Severity::Hint),
         }
     }
@@ -164,10 +173,7 @@ impl CheckArgs {
             "high" => Ok(Confidence::High),
             "medium" => Ok(Confidence::Medium),
             "low" => Ok(Confidence::Low),
-            other => anyhow::bail!(
-                "Invalid confidence '{}'. Valid values: high, medium, low",
-                other
-            ),
+            other => anyhow::bail!("{}", t!("check.invalid_confidence", value = other)),
         }
     }
 
@@ -184,19 +190,22 @@ impl CheckArgs {
         }
 
         let tier_display = match tier {
-            PremiumTier::Free => "Free".dimmed(),
-            PremiumTier::Pro => "Pro".cyan().bold(),
-            PremiumTier::Enterprise => "Enterprise".magenta().bold(),
+            PremiumTier::Free => t!("tier.free").dimmed(),
+            PremiumTier::Pro => t!("tier.pro").cyan().bold(),
+            PremiumTier::Enterprise => t!("tier.enterprise").magenta().bold(),
         };
 
         if *source == LicenseSource::None {
-            eprintln!("{} {}", "tier:".dimmed(), tier_display);
+            eprintln!("{} {}", t!("check.tier_display").dimmed(), tier_display);
         } else {
             eprintln!(
-                "{} {} (from {})",
-                "tier:".dimmed(),
-                tier_display,
-                source.as_str().dimmed()
+                "{} {}",
+                t!("check.tier_display").dimmed(),
+                t!(
+                    "check.tier_from",
+                    tier = tier_display,
+                    source = source.as_str().dimmed()
+                )
             );
         }
     }
@@ -204,10 +213,10 @@ impl CheckArgs {
     fn output_text(&self, diagnostics: &[Diagnostic]) {
         for diag in diagnostics {
             let severity_str = match diag.severity {
-                Severity::Error => "error".red().bold(),
-                Severity::Warning => "warning".yellow().bold(),
-                Severity::Info => "info".blue().bold(),
-                Severity::Hint => "hint".cyan().bold(),
+                Severity::Error => t!("output.error").red().bold(),
+                Severity::Warning => t!("output.warning").yellow().bold(),
+                Severity::Info => t!("output.info").blue().bold(),
+                Severity::Hint => t!("output.hint").cyan().bold(),
             };
 
             println!(
@@ -221,7 +230,7 @@ impl CheckArgs {
             );
 
             if let Some(suggestion) = &diag.suggestion {
-                println!("  {} {}", "suggestion:".green(), suggestion);
+                println!("  {} {}", t!("output.suggestion").green(), suggestion);
             }
         }
 
@@ -237,8 +246,12 @@ impl CheckArgs {
         if !diagnostics.is_empty() {
             println!();
             println!(
-                "Found {} error(s) and {} warning(s)",
-                error_count, warning_count
+                "{}",
+                t!(
+                    "output.found_errors_warnings",
+                    errors = error_count,
+                    warnings = warning_count
+                )
             );
         }
     }
@@ -285,11 +298,11 @@ fn get_staged_files() -> Result<Vec<PathBuf>> {
     let output = Command::new("git")
         .args(["diff", "--cached", "--name-only", "--diff-filter=ACMR"])
         .output()
-        .map_err(|e| anyhow::anyhow!("Failed to run git: {}. Is this a git repository?", e))?;
+        .map_err(|e| anyhow::anyhow!("{}", t!("check.git_failed", error = e)))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("Git command failed: {}", stderr.trim());
+        anyhow::bail!("{}", t!("check.git_error", error = stderr.trim()));
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -305,7 +318,7 @@ fn get_staged_files() -> Result<Vec<PathBuf>> {
 
 fn discover_files(path: &Path) -> Result<Vec<PathBuf>> {
     if !path.exists() {
-        anyhow::bail!("Path does not exist: {}", path.display());
+        anyhow::bail!("{}", t!("check.path_not_exist", path = path.display()));
     }
 
     if path.is_file() {

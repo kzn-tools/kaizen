@@ -5,12 +5,15 @@ use colored::Colorize;
 use kaizen_core::analysis::AnalysisEngine;
 use kaizen_core::config::load_config_or_default_with_warnings;
 use kaizen_core::rules::{RuleCategory, Severity};
+use rust_i18n::t;
 use std::env;
 
 #[derive(Args, Debug)]
 pub struct ExplainArgs {
-    /// Rule ID to explain (e.g., "Q032", "no-console")
-    #[arg(value_name = "RULE_ID")]
+    #[arg(
+        value_name = "RULE_ID",
+        help = "Rule ID to explain (e.g., \"Q032\", \"no-console\")"
+    )]
     pub rule_id: String,
 }
 
@@ -32,28 +35,32 @@ impl ExplainArgs {
                 let is_enabled = registry.is_rule_enabled(&self.rule_id);
 
                 println!();
-                println!("{}", format!("Rule: {}", metadata.id).bold());
+                println!("{}", t!("explain.rule_title", id = metadata.id).bold());
                 println!();
-                println!("  {}: {}", "Name".cyan(), metadata.name);
-                println!("  {}: {}", "Description".cyan(), metadata.description);
+                println!("  {}: {}", t!("explain.name").cyan(), metadata.name);
                 println!(
                     "  {}: {}",
-                    "Category".cyan(),
+                    t!("explain.description").cyan(),
+                    metadata.description
+                );
+                println!(
+                    "  {}: {}",
+                    t!("explain.category").cyan(),
                     format_category(&metadata.category)
                 );
                 println!(
                     "  {}: {}",
-                    "Severity".cyan(),
+                    t!("explain.severity_label").cyan(),
                     format_severity(&metadata.severity)
                 );
 
                 if let Some(url) = metadata.docs_url {
-                    println!("  {}: {}", "Documentation".cyan(), url);
+                    println!("  {}: {}", t!("explain.documentation").cyan(), url);
                 }
 
                 if let Some(examples) = metadata.examples {
                     println!();
-                    println!("  {}:", "Examples".cyan());
+                    println!("  {}:", t!("explain.examples").cyan());
                     for line in examples.lines() {
                         println!("    {}", line);
                     }
@@ -61,9 +68,17 @@ impl ExplainArgs {
 
                 println!();
                 if is_enabled {
-                    println!("  {}: {}", "Status".cyan(), "enabled".green());
+                    println!(
+                        "  {}: {}",
+                        t!("explain.status").cyan(),
+                        t!("explain.enabled").green()
+                    );
                 } else {
-                    println!("  {}: {}", "Status".cyan(), "disabled".red());
+                    println!(
+                        "  {}: {}",
+                        t!("explain.status").cyan(),
+                        t!("explain.disabled").red()
+                    );
                 }
                 println!();
 
@@ -71,12 +86,12 @@ impl ExplainArgs {
             }
             None => {
                 eprintln!(
-                    "{} Rule '{}' not found",
+                    "{} {}",
                     "error:".red().bold(),
-                    self.rule_id
+                    t!("explain.not_found", id = self.rule_id)
                 );
                 eprintln!();
-                eprintln!("Available rules:");
+                eprintln!("{}", t!("explain.available_rules"));
 
                 for rule in registry.rules() {
                     let meta = rule.metadata();
@@ -91,17 +106,17 @@ impl ExplainArgs {
 
 fn format_category(category: &RuleCategory) -> String {
     match category {
-        RuleCategory::Quality => "Quality".to_string(),
-        RuleCategory::Security => "Security".to_string(),
+        RuleCategory::Quality => t!("category.quality").to_string(),
+        RuleCategory::Security => t!("category.security").to_string(),
     }
 }
 
 fn format_severity(severity: &Severity) -> String {
     match severity {
-        Severity::Error => "Error".red().to_string(),
-        Severity::Warning => "Warning".yellow().to_string(),
-        Severity::Info => "Info".blue().to_string(),
-        Severity::Hint => "Hint".cyan().to_string(),
+        Severity::Error => t!("output.error").red().to_string(),
+        Severity::Warning => t!("output.warning").yellow().to_string(),
+        Severity::Info => t!("output.info").blue().to_string(),
+        Severity::Hint => t!("output.hint").cyan().to_string(),
     }
 }
 

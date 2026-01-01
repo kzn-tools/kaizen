@@ -14,15 +14,15 @@ use clap::Subcommand;
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Manage authentication
+    #[command(about = "Manage authentication")]
     Auth(AuthArgs),
 
-    /// Analyze JavaScript/TypeScript files for issues
+    #[command(about = "Analyze JavaScript/TypeScript files for issues")]
     Check(CheckArgs),
 
-    /// Initialize Kaizen configuration in current directory
+    #[command(about = "Initialize Kaizen configuration in current directory")]
     Init(InitArgs),
 
-    /// Show detailed explanation for a specific rule
+    #[command(about = "Show detailed explanation for a specific rule")]
     Explain(ExplainArgs),
 }
