@@ -51,7 +51,11 @@ pub struct InitArgs {
     #[arg(short, long, help = "Force overwrite existing configuration")]
     pub force: bool,
 
-    #[arg(long, value_name = "HOOK", help = "Install a git hook (e.g., pre-commit)")]
+    #[arg(
+        long,
+        value_name = "HOOK",
+        help = "Install a git hook (e.g., pre-commit)"
+    )]
     pub hook: Option<HookType>,
 }
 
@@ -106,7 +110,11 @@ impl InitArgs {
         println!(
             "{} {}",
             "✓".green().bold(),
-            t!("init.hook_installed", hook = hook_name.cyan(), path = hook_path.display())
+            t!(
+                "init.hook_installed",
+                hook = hook_name.cyan(),
+                path = hook_path.display()
+            )
         );
         Ok(())
     }

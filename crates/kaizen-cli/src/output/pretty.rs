@@ -172,7 +172,8 @@ impl PrettyFormatter {
 
         format!(
             "\n{}\n",
-            t!("output.found_summary",
+            t!(
+                "output.found_summary",
                 total = total.to_string().bold(),
                 problems = problems_str,
                 errors = errors_str.red(),

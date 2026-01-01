@@ -26,22 +26,40 @@ const SUPPORTED_EXTENSIONS: &[&str] = &["js", "jsx", "ts", "tsx", "mjs", "cjs", 
 
 #[derive(Args, Debug)]
 pub struct CheckArgs {
-    #[arg(value_name = "PATH", required_unless_present = "staged", help = "Path to file or directory to analyze")]
+    #[arg(
+        value_name = "PATH",
+        required_unless_present = "staged",
+        help = "Path to file or directory to analyze"
+    )]
     pub path: Option<PathBuf>,
 
     #[arg(long, help = "Analyze only git staged files")]
     pub staged: bool,
 
-    #[arg(short, long, default_value = "pretty", help = "Output format for diagnostics (pretty, text, json, ndjson, sarif)")]
+    #[arg(
+        short,
+        long,
+        default_value = "pretty",
+        help = "Output format for diagnostics (pretty, text, json, ndjson, sarif)"
+    )]
     pub format: String,
 
     #[arg(long, help = "Fail on warnings (exit code 1)")]
     pub fail_on_warnings: bool,
 
-    #[arg(long, value_name = "LEVEL", help = "Filter diagnostics by minimum severity level (error, warning, info, hint)")]
+    #[arg(
+        long,
+        value_name = "LEVEL",
+        help = "Filter diagnostics by minimum severity level (error, warning, info, hint)"
+    )]
     pub severity: Option<String>,
 
-    #[arg(long, value_name = "LEVEL", default_value = "medium", help = "Filter diagnostics by minimum confidence level (high, medium, low)")]
+    #[arg(
+        long,
+        value_name = "LEVEL",
+        default_value = "medium",
+        help = "Filter diagnostics by minimum confidence level (high, medium, low)"
+    )]
     pub min_confidence: String,
 
     #[arg(long, help = "Disable colored output")]
@@ -183,7 +201,11 @@ impl CheckArgs {
             eprintln!(
                 "{} {}",
                 t!("check.tier_display").dimmed(),
-                t!("check.tier_from", tier = tier_display, source = source.as_str().dimmed())
+                t!(
+                    "check.tier_from",
+                    tier = tier_display,
+                    source = source.as_str().dimmed()
+                )
             );
         }
     }
@@ -225,7 +247,11 @@ impl CheckArgs {
             println!();
             println!(
                 "{}",
-                t!("output.found_errors_warnings", errors = error_count, warnings = warning_count)
+                t!(
+                    "output.found_errors_warnings",
+                    errors = error_count,
+                    warnings = warning_count
+                )
             );
         }
     }

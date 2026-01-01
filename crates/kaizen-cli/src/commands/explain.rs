@@ -10,7 +10,10 @@ use std::env;
 
 #[derive(Args, Debug)]
 pub struct ExplainArgs {
-    #[arg(value_name = "RULE_ID", help = "Rule ID to explain (e.g., \"Q032\", \"no-console\")")]
+    #[arg(
+        value_name = "RULE_ID",
+        help = "Rule ID to explain (e.g., \"Q032\", \"no-console\")"
+    )]
     pub rule_id: String,
 }
 
@@ -35,7 +38,11 @@ impl ExplainArgs {
                 println!("{}", t!("explain.rule_title", id = metadata.id).bold());
                 println!();
                 println!("  {}: {}", t!("explain.name").cyan(), metadata.name);
-                println!("  {}: {}", t!("explain.description").cyan(), metadata.description);
+                println!(
+                    "  {}: {}",
+                    t!("explain.description").cyan(),
+                    metadata.description
+                );
                 println!(
                     "  {}: {}",
                     t!("explain.category").cyan(),
@@ -61,9 +68,17 @@ impl ExplainArgs {
 
                 println!();
                 if is_enabled {
-                    println!("  {}: {}", t!("explain.status").cyan(), t!("explain.enabled").green());
+                    println!(
+                        "  {}: {}",
+                        t!("explain.status").cyan(),
+                        t!("explain.enabled").green()
+                    );
                 } else {
-                    println!("  {}: {}", t!("explain.status").cyan(), t!("explain.disabled").red());
+                    println!(
+                        "  {}: {}",
+                        t!("explain.status").cyan(),
+                        t!("explain.disabled").red()
+                    );
                 }
                 println!();
 

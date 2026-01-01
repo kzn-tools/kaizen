@@ -25,9 +25,15 @@ const API_TIMEOUT_SECS: u64 = 10;
 
 #[derive(Subcommand, Debug)]
 pub enum AuthSubcommand {
-    #[command(about = "Authenticate with Kaizen (opens browser for device flow, or use --key for direct API key)")]
+    #[command(
+        about = "Authenticate with Kaizen (opens browser for device flow, or use --key for direct API key)"
+    )]
     Login {
-        #[arg(long = "key", value_name = "API_KEY", help = "Your Kaizen API key (optional - if not provided, uses browser-based device flow)")]
+        #[arg(
+            long = "key",
+            value_name = "API_KEY",
+            help = "Your Kaizen API key (optional - if not provided, uses browser-based device flow)"
+        )]
         api_key: Option<String>,
     },
 
@@ -121,13 +127,19 @@ impl AuthArgs {
         println!(
             "  {}  {}",
             "1.".bold(),
-            t!("auth.step1", url = device_response.verification_uri.cyan().underline())
+            t!(
+                "auth.step1",
+                url = device_response.verification_uri.cyan().underline()
+            )
         );
         println!();
         println!(
             "  {}  {}",
             "2.".bold(),
-            t!("auth.step2", code = device_response.user_code.yellow().bold())
+            t!(
+                "auth.step2",
+                code = device_response.user_code.yellow().bold()
+            )
         );
         println!();
         println!(
@@ -139,11 +151,7 @@ impl AuthArgs {
         if webbrowser::open(&device_response.verification_uri).is_ok() {
             println!("{} {}", "→".blue(), t!("auth.browser_opened"));
         } else {
-            println!(
-                "{} {}",
-                "!".yellow(),
-                t!("auth.browser_failed")
-            );
+            println!("{} {}", "!".yellow(), t!("auth.browser_failed"));
         }
 
         print!("{}", t!("auth.waiting").dimmed());
@@ -174,12 +182,19 @@ impl AuthArgs {
         }
 
         fs::remove_file(&credentials_path).with_context(|| {
-            t!("error.failed_remove_credentials", path = credentials_path.display()).to_string()
+            t!(
+                "error.failed_remove_credentials",
+                path = credentials_path.display()
+            )
+            .to_string()
         })?;
         println!(
             "{} {}",
             "✓".green().bold(),
-            t!("auth.credentials_removed", path = credentials_path.display())
+            t!(
+                "auth.credentials_removed",
+                path = credentials_path.display()
+            )
         );
         Ok(())
     }
@@ -203,7 +218,11 @@ impl AuthArgs {
             source => {
                 println!(
                     "{}",
-                    t!("auth.status_from", status = t!("auth.status.authenticated").green(), source = source.as_str())
+                    t!(
+                        "auth.status_from",
+                        status = t!("auth.status.authenticated").green(),
+                        source = source.as_str()
+                    )
                 );
             }
         }
@@ -228,7 +247,11 @@ fn save_credentials(token: &str) -> Result<()> {
     }
 
     fs::write(&credentials_path, token).with_context(|| {
-        t!("error.failed_write_credentials", path = credentials_path.display()).to_string()
+        t!(
+            "error.failed_write_credentials",
+            path = credentials_path.display()
+        )
+        .to_string()
     })?;
 
     #[cfg(unix)]
