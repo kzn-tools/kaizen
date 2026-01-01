@@ -1,0 +1,127 @@
+_version: 1
+
+# CLI metadata
+cli.about: "Ultra-fast JavaScript/TypeScript static analyzer"
+cli.long_about: |
+  Kaizen is a blazingly fast static analyzer for JavaScript and TypeScript.
+
+  It detects code quality issues, security vulnerabilities, and provides
+  actionable suggestions to improve your codebase.
+
+# Subcommand descriptions
+commands.auth: "Manage authentication"
+commands.check: "Analyze JavaScript/TypeScript files for issues"
+commands.init: "Initialize Kaizen configuration in current directory"
+commands.explain: "Show detailed explanation for a specific rule"
+
+# Auth command
+auth.login.about: "Authenticate with Kaizen (opens browser for device flow, or use --key for direct API key)"
+auth.login.key_help: "Your Kaizen API key (optional - if not provided, uses browser-based device flow)"
+auth.logout.about: "Remove saved API key"
+auth.status.about: "Display current authentication status"
+auth.starting: "Starting authentication..."
+auth.step1: "Open %{url} in your browser"
+auth.step2: "Enter code: %{code}"
+auth.browser_opened: "Browser opened automatically"
+auth.browser_failed: "Could not open browser automatically. Please open the URL manually."
+auth.waiting: "Waiting for authorization"
+auth.success: "Authenticated successfully! Credentials saved to %{path}"
+auth.no_credentials: "No credentials found"
+auth.credentials_removed: "Credentials removed from %{path}"
+auth.key_empty: "API key cannot be empty"
+auth.timeout: "Authentication timed out. Please try again."
+auth.denied: "Authorization was denied. Please try again."
+auth.expired: "Device code expired. Please try again."
+auth.failed_status: "Failed to start authentication (status %{status}). Is the API available?"
+
+# Auth status
+auth.tier: "Tier: %{tier}"
+auth.status.authenticated: "Authenticated"
+auth.status.not_authenticated: "Not authenticated"
+auth.status_from: "Status: %{status} (from %{source})"
+
+# Tier names
+tier.free: "Free"
+tier.pro: "Pro"
+tier.enterprise: "Enterprise"
+
+# Check command
+check.path_help: "Path to file or directory to analyze"
+check.staged_help: "Analyze only git staged files"
+check.format_help: "Output format for diagnostics (pretty, text, json, ndjson, sarif)"
+check.fail_on_warnings_help: "Fail on warnings (exit code 1)"
+check.severity_help: "Filter diagnostics by minimum severity level (error, warning, info, hint)"
+check.confidence_help: "Filter diagnostics by minimum confidence level (high, medium, low)"
+check.no_color_help: "Disable colored output"
+check.no_staged_files: "No staged JavaScript/TypeScript files found."
+check.no_files: "No JavaScript/TypeScript files found."
+check.invalid_severity: "Invalid severity '%{value}'. Valid values: error, warning, info, hint"
+check.invalid_confidence: "Invalid confidence '%{value}'. Valid values: high, medium, low"
+check.path_not_exist: "Path does not exist: %{path}"
+check.git_failed: "Failed to run git: %{error}. Is this a git repository?"
+check.git_error: "Git command failed: %{error}"
+check.tier_display: "tier:"
+check.tier_from: "%{tier} (from %{source})"
+
+# Explain command
+explain.rule_id_help: "Rule ID to explain (e.g., \"Q032\", \"no-console\")"
+explain.rule_title: "Rule: %{id}"
+explain.name: "Name"
+explain.description: "Description"
+explain.category: "Category"
+explain.severity_label: "Severity"
+explain.documentation: "Documentation"
+explain.examples: "Examples"
+explain.status: "Status"
+explain.enabled: "enabled"
+explain.disabled: "disabled"
+explain.not_found: "Rule '%{id}' not found"
+explain.available_rules: "Available rules:"
+
+# Categories
+category.quality: "Quality"
+category.security: "Security"
+
+# Init command
+init.force_help: "Force overwrite existing configuration"
+init.hook_help: "Install a git hook (e.g., pre-commit)"
+init.config_created: "Created %{filename} configuration file"
+init.hook_installed: "Installed %{hook} hook at %{path}"
+init.config_exists: "Config file '%{filename}' already exists. Use --force to overwrite."
+init.hook_exists: "Hook '%{name}' already exists. Use --force to overwrite."
+init.not_git_repo: "Not a git repository (or any parent up to mount point)"
+
+# Output formatting
+output.error: "error"
+output.warning: "warning"
+output.info: "info"
+output.hint: "hint"
+output.suggestion: "suggestion:"
+output.found_summary: "Found %{total} %{problems} (%{errors}, %{warnings})"
+output.problem: "problem"
+output.problems: "problems"
+output.error_count: "%{count} error"
+output.errors_count: "%{count} errors"
+output.warning_count: "%{count} warning"
+output.warnings_count: "%{count} warnings"
+output.found_errors_warnings: "Found %{errors} error(s) and %{warnings} warning(s)"
+
+# Confidence levels
+confidence.high: "high"
+confidence.medium: "medium"
+confidence.low: "low"
+
+# License sources
+license.source.environment: "environment variable"
+license.source.credentials: "credentials file"
+license.source.config: "kaizen.toml"
+license.source.none: "none"
+
+# Errors
+error.home_not_found: "Could not find home directory"
+error.invalid_credentials_path: "Invalid credentials path: no parent directory"
+error.failed_create_client: "Failed to create HTTP client"
+error.failed_initiate_flow: "Failed to initiate device flow"
+error.failed_parse_response: "Failed to parse device flow response"
+error.failed_write_credentials: "Failed to write credentials to %{path}"
+error.failed_remove_credentials: "Failed to remove credentials from %{path}"

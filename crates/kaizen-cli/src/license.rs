@@ -9,6 +9,7 @@
 
 use kaizen_core::config::LicenseConfig;
 use kaizen_core::licensing::PremiumTier;
+use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -34,12 +35,12 @@ pub enum LicenseSource {
 }
 
 impl LicenseSource {
-    pub fn as_str(&self) -> &'static str {
+    pub fn as_str(&self) -> String {
         match self {
-            LicenseSource::Environment => "environment variable",
-            LicenseSource::Credentials => "credentials file",
-            LicenseSource::Config => "kaizen.toml",
-            LicenseSource::None => "none",
+            LicenseSource::Environment => t!("license.source.environment").to_string(),
+            LicenseSource::Credentials => t!("license.source.credentials").to_string(),
+            LicenseSource::Config => t!("license.source.config").to_string(),
+            LicenseSource::None => t!("license.source.none").to_string(),
         }
     }
 }

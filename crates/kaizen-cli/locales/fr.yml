@@ -1,0 +1,127 @@
+_version: 1
+
+# CLI metadata
+cli.about: "Analyseur statique JavaScript/TypeScript ultra-rapide"
+cli.long_about: |
+  Kaizen est un analyseur statique ultra-rapide pour JavaScript et TypeScript.
+
+  Il détecte les problèmes de qualité de code, les vulnérabilités de sécurité,
+  et fournit des suggestions actionnables pour améliorer votre base de code.
+
+# Subcommand descriptions
+commands.auth: "Gérer l'authentification"
+commands.check: "Analyser les fichiers JavaScript/TypeScript"
+commands.init: "Initialiser la configuration Kaizen dans le répertoire courant"
+commands.explain: "Afficher l'explication détaillée d'une règle"
+
+# Auth command
+auth.login.about: "S'authentifier avec Kaizen (ouvre le navigateur pour le flux d'appareil, ou utilisez --key pour une clé API directe)"
+auth.login.key_help: "Votre clé API Kaizen (optionnel - si non fournie, utilise l'authentification par navigateur)"
+auth.logout.about: "Supprimer la clé API enregistrée"
+auth.status.about: "Afficher le statut d'authentification actuel"
+auth.starting: "Démarrage de l'authentification..."
+auth.step1: "Ouvrez %{url} dans votre navigateur"
+auth.step2: "Entrez le code : %{code}"
+auth.browser_opened: "Navigateur ouvert automatiquement"
+auth.browser_failed: "Impossible d'ouvrir le navigateur automatiquement. Veuillez ouvrir l'URL manuellement."
+auth.waiting: "En attente d'autorisation"
+auth.success: "Authentification réussie ! Identifiants enregistrés dans %{path}"
+auth.no_credentials: "Aucun identifiant trouvé"
+auth.credentials_removed: "Identifiants supprimés de %{path}"
+auth.key_empty: "La clé API ne peut pas être vide"
+auth.timeout: "Délai d'authentification dépassé. Veuillez réessayer."
+auth.denied: "Autorisation refusée. Veuillez réessayer."
+auth.expired: "Code d'appareil expiré. Veuillez réessayer."
+auth.failed_status: "Échec du démarrage de l'authentification (statut %{status}). L'API est-elle disponible ?"
+
+# Auth status
+auth.tier: "Niveau : %{tier}"
+auth.status.authenticated: "Authentifié"
+auth.status.not_authenticated: "Non authentifié"
+auth.status_from: "Statut : %{status} (depuis %{source})"
+
+# Tier names
+tier.free: "Gratuit"
+tier.pro: "Pro"
+tier.enterprise: "Entreprise"
+
+# Check command
+check.path_help: "Chemin vers le fichier ou répertoire à analyser"
+check.staged_help: "Analyser uniquement les fichiers git indexés"
+check.format_help: "Format de sortie pour les diagnostics (pretty, text, json, ndjson, sarif)"
+check.fail_on_warnings_help: "Échouer sur les avertissements (code de sortie 1)"
+check.severity_help: "Filtrer les diagnostics par niveau de sévérité minimum (error, warning, info, hint)"
+check.confidence_help: "Filtrer les diagnostics par niveau de confiance minimum (high, medium, low)"
+check.no_color_help: "Désactiver la sortie colorée"
+check.no_staged_files: "Aucun fichier JavaScript/TypeScript indexé trouvé."
+check.no_files: "Aucun fichier JavaScript/TypeScript trouvé."
+check.invalid_severity: "Sévérité invalide '%{value}'. Valeurs valides : error, warning, info, hint"
+check.invalid_confidence: "Confiance invalide '%{value}'. Valeurs valides : high, medium, low"
+check.path_not_exist: "Le chemin n'existe pas : %{path}"
+check.git_failed: "Échec de l'exécution de git : %{error}. Est-ce un dépôt git ?"
+check.git_error: "Commande git échouée : %{error}"
+check.tier_display: "niveau :"
+check.tier_from: "%{tier} (depuis %{source})"
+
+# Explain command
+explain.rule_id_help: "ID de règle à expliquer (ex. \"Q032\", \"no-console\")"
+explain.rule_title: "Règle : %{id}"
+explain.name: "Nom"
+explain.description: "Description"
+explain.category: "Catégorie"
+explain.severity_label: "Sévérité"
+explain.documentation: "Documentation"
+explain.examples: "Exemples"
+explain.status: "Statut"
+explain.enabled: "activée"
+explain.disabled: "désactivée"
+explain.not_found: "Règle '%{id}' introuvable"
+explain.available_rules: "Règles disponibles :"
+
+# Categories
+category.quality: "Qualité"
+category.security: "Sécurité"
+
+# Init command
+init.force_help: "Forcer l'écrasement de la configuration existante"
+init.hook_help: "Installer un hook git (ex. pre-commit)"
+init.config_created: "Fichier de configuration %{filename} créé"
+init.hook_installed: "Hook %{hook} installé dans %{path}"
+init.config_exists: "Le fichier de configuration '%{filename}' existe déjà. Utilisez --force pour écraser."
+init.hook_exists: "Le hook '%{name}' existe déjà. Utilisez --force pour écraser."
+init.not_git_repo: "Ce n'est pas un dépôt git (ou aucun parent jusqu'au point de montage)"
+
+# Output formatting
+output.error: "erreur"
+output.warning: "avertissement"
+output.info: "info"
+output.hint: "conseil"
+output.suggestion: "suggestion :"
+output.found_summary: "Trouvé %{total} %{problems} (%{errors}, %{warnings})"
+output.problem: "problème"
+output.problems: "problèmes"
+output.error_count: "%{count} erreur"
+output.errors_count: "%{count} erreurs"
+output.warning_count: "%{count} avertissement"
+output.warnings_count: "%{count} avertissements"
+output.found_errors_warnings: "Trouvé %{errors} erreur(s) et %{warnings} avertissement(s)"
+
+# Confidence levels
+confidence.high: "haute"
+confidence.medium: "moyenne"
+confidence.low: "basse"
+
+# License sources
+license.source.environment: "variable d'environnement"
+license.source.credentials: "fichier d'identifiants"
+license.source.config: "kaizen.toml"
+license.source.none: "aucune"
+
+# Errors
+error.home_not_found: "Impossible de trouver le répertoire personnel"
+error.invalid_credentials_path: "Chemin d'identifiants invalide : pas de répertoire parent"
+error.failed_create_client: "Échec de création du client HTTP"
+error.failed_initiate_flow: "Échec de l'initiation du flux d'appareil"
+error.failed_parse_response: "Échec de l'analyse de la réponse du flux d'appareil"
+error.failed_write_credentials: "Échec de l'écriture des identifiants dans %{path}"
+error.failed_remove_credentials: "Échec de la suppression des identifiants de %{path}"

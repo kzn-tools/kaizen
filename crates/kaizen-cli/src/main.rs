@@ -3,11 +3,14 @@
 //! Ultra-fast JavaScript/TypeScript static analyzer written in Rust.
 
 mod commands;
+mod i18n;
 mod license;
 mod output;
 
 use clap::Parser;
 use commands::Commands;
+
+rust_i18n::i18n!("locales", fallback = "en");
 
 #[derive(Parser, Debug)]
 #[command(
@@ -20,12 +23,17 @@ use commands::Commands;
                   actionable suggestions to improve your codebase."
 )]
 pub struct Cli {
+    #[arg(long, global = true, help = "Set output language (en, fr)")]
+    pub lang: Option<String>,
+
     #[command(subcommand)]
     pub command: Commands,
 }
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+
+    i18n::init_locale(cli.lang.as_deref());
 
     match cli.command {
         Commands::Auth(args) => args.run(),

@@ -5,6 +5,7 @@
 use colored::{ColoredString, Colorize};
 use kaizen_core::diagnostic::Diagnostic;
 use kaizen_core::rules::{Confidence, Severity};
+use rust_i18n::t;
 use std::collections::HashMap;
 use std::fs;
 
@@ -102,7 +103,7 @@ impl PrettyFormatter {
                 "{} {} {} {}",
                 padding,
                 "=".blue(),
-                "suggestion:".green(),
+                t!("output.suggestion").green(),
                 suggestion
             ));
         }
@@ -112,18 +113,18 @@ impl PrettyFormatter {
 
     fn colorize_severity(&self, severity: &Severity) -> ColoredString {
         match severity {
-            Severity::Error => "error".red().bold(),
-            Severity::Warning => "warning".yellow().bold(),
-            Severity::Info => "info".blue().bold(),
-            Severity::Hint => "hint".cyan().bold(),
+            Severity::Error => t!("output.error").red().bold(),
+            Severity::Warning => t!("output.warning").yellow().bold(),
+            Severity::Info => t!("output.info").blue().bold(),
+            Severity::Hint => t!("output.hint").cyan().bold(),
         }
     }
 
     fn colorize_confidence(&self, confidence: &Confidence) -> ColoredString {
         match confidence {
-            Confidence::High => "high".green(),
-            Confidence::Medium => "medium".yellow(),
-            Confidence::Low => "low".red(),
+            Confidence::High => t!("confidence.high").green(),
+            Confidence::Medium => t!("confidence.medium").yellow(),
+            Confidence::Low => t!("confidence.low").red(),
         }
     }
 
@@ -152,25 +153,31 @@ impl PrettyFormatter {
         let total = diagnostics.len();
 
         let errors_str = if error_count == 1 {
-            format!("{} error", error_count)
+            t!("output.error_count", count = error_count)
         } else {
-            format!("{} errors", error_count)
+            t!("output.errors_count", count = error_count)
         };
 
         let warnings_str = if warning_count == 1 {
-            format!("{} warning", warning_count)
+            t!("output.warning_count", count = warning_count)
         } else {
-            format!("{} warnings", warning_count)
+            t!("output.warnings_count", count = warning_count)
         };
 
-        let problems_str = if total == 1 { "problem" } else { "problems" };
+        let problems_str = if total == 1 {
+            t!("output.problem")
+        } else {
+            t!("output.problems")
+        };
 
         format!(
-            "\nFound {} {} ({}, {})\n",
-            total.to_string().bold(),
-            problems_str,
-            errors_str.red(),
-            warnings_str.yellow()
+            "\n{}\n",
+            t!("output.found_summary",
+                total = total.to_string().bold(),
+                problems = problems_str,
+                errors = errors_str.red(),
+                warnings = warnings_str.yellow()
+            )
         )
     }
 }
